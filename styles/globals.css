@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+    padding: 0;
+    margin: 0;
+    font-family: "DM Sans", "Segoe UI", sans-serif;
+    background: #faf7f4;
+    color: #1a1a1a;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.bg-atmosphere {
+    background:
+        radial-gradient(circle at 20% 20%, rgba(196, 154, 60, 0.2) 0%, transparent 45%),
+        radial-gradient(circle at 80% 10%, rgba(107, 58, 42, 0.2) 0%, transparent 42%),
+        linear-gradient(160deg, #fdfbf9 0%, #faf7f4 100%);
+}
+
+.card {
+    @apply rounded-xl bg-cream shadow-card border border-[#E8DED5];
+}
+
+.input {
+    @apply w-full rounded-lg border border-[#D7CBC1] bg-white px-4 py-3 text-sm text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-[#C49A3C33];
+}
+
+.label {
+    @apply mb-2 block text-sm font-semibold text-[#3C2F2A];
+}
+
+.page-title {
+    @apply text-2xl md:text-3xl font-semibold text-ink;
+}
+
+.page-subtitle {
+    @apply mt-2 text-sm md:text-base text-[#5A4A44];
+}
