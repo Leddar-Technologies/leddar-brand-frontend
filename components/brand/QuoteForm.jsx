@@ -40,6 +40,8 @@ export default function QuoteForm() {
   const [requestId, setRequestId] = useState("");
   const fileInputRef = useRef(null);
   const pollingBusyRef = useRef(false);
+  const canSubmitRequest =
+    Number(quantity) > 0 && files.length > 0 && Boolean(requiredTimeline);
 
   function savePendingRequestId(id) {
     if (typeof window === "undefined" || !id) {
@@ -183,6 +185,10 @@ export default function QuoteForm() {
   async function handleRequestPricing() {
     setPricingError("");
 
+    if (!validateRequestInputs()) {
+      return;
+    }
+
     if (getKycStatus() !== "verified") {
       savePendingQuoteIntent(buildQuoteRequestPayload());
       router.push(
@@ -191,11 +197,17 @@ export default function QuoteForm() {
       return;
     }
 
+    await startPricingDepositFlow(buildQuoteRequestPayload());
+  }
+
+  function handleRequestSample() {
+    setPricingError("");
+
     if (!validateRequestInputs()) {
       return;
     }
 
-    await startPricingDepositFlow(buildQuoteRequestPayload());
+    router.push("/sample-order");
   }
 
   async function handleConfirmDepositPayment() {
@@ -455,9 +467,15 @@ export default function QuoteForm() {
             Get a physical sample produced first. Pay a flat fee, review via
             video, then proceed.
           </p>
-          <Link href="/sample-order" className="mt-4 inline-block">
-            <Button variant="accent">Request Sample</Button>
-          </Link>
+          <div className="mt-4">
+            <Button
+              variant="accent"
+              onClick={handleRequestSample}
+              disabled={!canSubmitRequest}
+            >
+              Request Sample
+            </Button>
+          </div>
         </div>
 
         <div className="card p-6">
@@ -472,7 +490,7 @@ export default function QuoteForm() {
           <div className="mt-4">
             <Button
               onClick={handleRequestPricing}
-              disabled={depositInitializing}
+              disabled={depositInitializing || !canSubmitRequest}
             >
               {depositInitializing ? (
                 <span className="inline-flex items-center gap-2">
