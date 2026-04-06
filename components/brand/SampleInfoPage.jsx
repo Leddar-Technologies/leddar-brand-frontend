@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, CreditCard, ShieldCheck, Sparkles } from "lucide-react";
 import { sampleInfoPoints, sampleSteps } from "../../data/mockData";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
-import { initializeSamplePayment } from "../../services/paymentService";
+import Spinner from "../ui/Spinner";
+import {
+  getSampleProgress,
+  initializeSamplePayment,
+} from "../../services/paymentService";
 
 export default function SampleInfoPage() {
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -13,6 +17,9 @@ export default function SampleInfoPage() {
   const [error, setError] = useState("");
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [paymentStage, setPaymentStage] = useState("form");
+  const [sampleRequestId, setSampleRequestId] = useState("");
+  const [currentSampleStatus, setCurrentSampleStatus] = useState("requested");
+  const [progressLoading, setProgressLoading] = useState(false);
 
   async function handleInitiatePayment(event) {
     event.preventDefault();
@@ -26,6 +33,7 @@ export default function SampleInfoPage() {
         amount: 30000,
       });
       setPaymentDetails(result);
+      setSampleRequestId(result.sampleRequestId || "");
       setPaymentStage("success");
     } catch (err) {
       setError(err.message || "Unable to initialize payment.");
@@ -41,6 +49,43 @@ export default function SampleInfoPage() {
     setPaymentDetails(null);
     setPaymentStage("form");
   }
+
+  useEffect(() => {
+    if (!sampleRequestId) {
+      return;
+    }
+
+    let active = true;
+
+    const fetchProgress = async () => {
+      setProgressLoading(true);
+      try {
+        const result = await getSampleProgress(sampleRequestId);
+        if (active && result?.currentStatus) {
+          setCurrentSampleStatus(result.currentStatus);
+        }
+      } catch {
+        // Keep currently displayed state if progress fetch fails.
+      } finally {
+        if (active) {
+          setProgressLoading(false);
+        }
+      }
+    };
+
+    fetchProgress();
+    const interval = setInterval(fetchProgress, 5000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [sampleRequestId]);
+
+  const activeStepIndex = Math.max(
+    0,
+    sampleSteps.findIndex((step) => step.key === currentSampleStatus),
+  );
 
   return (
     <div className="space-y-6">
@@ -69,33 +114,66 @@ export default function SampleInfoPage() {
       </div>
 
       <div className="card p-6">
-        <h2 className="text-lg font-semibold text-ink">Sample Status</h2>
-        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center">
-          {sampleSteps.map((step, index) => (
-            <div key={step} className="flex items-center gap-3">
-              <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
-                  index <= 1
-                    ? "bg-gold text-espresso"
-                    : "bg-[#DCCFBE] text-[#6D5A51]"
+        <h2 className="text-lg font-semibold text-ink">Sample Progress</h2>
+        <p className="mt-1 text-sm text-[#5A4A44]">
+          This section shows the sample workflow only. Production orders are
+          tracked separately in Order Tracker.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#7B6A62]">
+          {progressLoading ? (
+            <>
+              <Spinner size="xs" className="text-gold" />
+              <span>Refreshing sample progress...</span>
+            </>
+          ) : (
+            <>
+              <span className="inline-block h-2 w-2 rounded-full bg-success" />
+              <span>Progress auto-updates every few seconds.</span>
+            </>
+          )}
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {sampleSteps.map((step, index) => {
+            const completed = index < activeStepIndex;
+            const activeStep = index === activeStepIndex;
+
+            return (
+              <div
+                key={step.key}
+                className={`rounded-xl border p-4 ${
+                  activeStep
+                    ? "border-[#C49A3C55] bg-[#FFF8EA]"
+                    : completed
+                      ? "border-[#2D6A4F1A] bg-[#2D6A4F10]"
+                      : "border-[#E8DED5] bg-white"
                 }`}
               >
-                {index + 1}
-              </span>
-              <span className="text-sm font-medium text-ink">{step}</span>
-              {index < sampleSteps.length - 1 ? (
-                <span className="hidden h-[2px] w-10 bg-[#DCCFBE] md:block" />
-              ) : null}
-            </div>
-          ))}
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      activeStep
+                        ? "bg-gold text-espresso"
+                        : completed
+                          ? "bg-success text-white"
+                          : "bg-[#DCCFBE] text-[#6D5A51]"
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-ink">
+                      {step.title}
+                    </p>
+                    <p className="mt-1 text-sm text-[#5A4A44]">{step.note}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      <Modal
-        open={paymentOpen}
-        title="Paystack Checkout"
-        onClose={closeModal}
-      >
+      <Modal open={paymentOpen} title="Paystack Checkout" onClose={closeModal}>
         <div className="mb-5 flex items-center gap-3 rounded-xl border border-[#E6D7CB] bg-[#FFF8EF] px-4 py-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gold text-espresso">
             <CreditCard className="h-5 w-5" />
@@ -116,9 +194,13 @@ export default function SampleInfoPage() {
 
         {paymentStage === "loading" ? (
           <div className="space-y-4 py-6 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border-4 border-[#EBD9B4] border-t-gold animate-spin" />
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FAF4E7]">
+              <Spinner size="lg" className="text-gold" />
+            </div>
             <div>
-              <p className="text-base font-semibold text-ink">Initializing Paystack...</p>
+              <p className="text-base font-semibold text-ink">
+                Initializing Paystack...
+              </p>
               <p className="mt-1 text-sm text-[#5A4A44]">
                 Preparing your payment reference and checkout session.
               </p>
@@ -132,7 +214,8 @@ export default function SampleInfoPage() {
                 Payment session created
               </p>
               <p className="mt-1 text-sm text-[#5A4A44]">
-                Your Paystack checkout is ready. Use the button below to open the payment page.
+                Your Paystack checkout is ready. Use the button below to open
+                the payment page.
               </p>
             </div>
 
@@ -141,7 +224,9 @@ export default function SampleInfoPage() {
                 <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">
                   Reference
                 </p>
-                <p className="mt-1 font-semibold text-ink">{paymentDetails.reference}</p>
+                <p className="mt-1 font-semibold text-ink">
+                  {paymentDetails.reference}
+                </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">
@@ -166,7 +251,11 @@ export default function SampleInfoPage() {
                   Open Paystack
                 </Button>
               </a>
-              <Button variant="outline" className="w-full sm:w-auto" onClick={closeModal}>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={closeModal}
+              >
                 Close
               </Button>
             </div>
@@ -174,7 +263,7 @@ export default function SampleInfoPage() {
         ) : (
           <form className="space-y-4" onSubmit={handleInitiatePayment}>
             <p className="text-sm text-[#5A4A44]">
-              Initialize the sample fee payment through Paystack. This UI is API-ready and can be swapped with a real checkout endpoint.
+              Initialize the sample fee payment through Paystack.
             </p>
 
             <div>
@@ -208,7 +297,14 @@ export default function SampleInfoPage() {
                 disabled={loading}
                 className="w-full sm:w-auto"
               >
-                {loading ? "Initializing..." : "Continue to Paystack"}
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner size="sm" className="text-espresso" />
+                    <span>Initializing...</span>
+                  </span>
+                ) : (
+                  "Continue to Paystack"
+                )}
               </Button>
               <Button
                 type="button"

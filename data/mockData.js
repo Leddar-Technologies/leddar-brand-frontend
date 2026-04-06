@@ -175,7 +175,38 @@ export const sampleInfoPoints = [
   "Once you approve the sample, you pay only the balance to proceed to production",
 ];
 
-export const sampleSteps = ["Reviewed", "Created", "Completed"];
+export const sampleSteps = [
+  {
+    key: "requested",
+    title: "Requested",
+    note: "Sample request has been submitted.",
+  },
+  {
+    key: "payment_confirmed",
+    title: "Payment Confirmed",
+    note: "Sample fee has been received.",
+  },
+  {
+    key: "in_review",
+    title: "In Review",
+    note: "Team is reviewing the sample brief.",
+  },
+  {
+    key: "sample_ready",
+    title: "Sample Ready",
+    note: "Sample is completed and ready for review.",
+  },
+  {
+    key: "revisions_needed",
+    title: "Revisions Needed",
+    note: "Optional corrections can be requested.",
+  },
+  {
+    key: "completed",
+    title: "Completed",
+    note: "Sample process is fully finished.",
+  },
+];
 
 export const productTypes = [
   "Bags",

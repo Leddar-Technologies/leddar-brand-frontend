@@ -11,7 +11,7 @@ export default function Sidebar({ mobile = false, onClose }) {
       className={`bg-espresso px-4 py-6 ${
         mobile
           ? "h-full w-[82%] max-w-xs"
-          : "h-full md:min-h-screen md:w-64 lg:w-72"
+          : "h-full lg:min-h-screen lg:w-64 xl:w-72"
       }`}
     >
       <div className="mb-8 flex items-center justify-between text-xl font-bold tracking-wide text-gold">
