@@ -6,16 +6,19 @@ import Button from "../components/ui/Button";
 import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { recentActivity, stats } from "../data/mockData";
-import { getSession } from "../services/authService";
+import { getKycStatus, getSession } from "../services/authService";
 
 export default function Dashboard() {
   const [brandName, setBrandName] = useState("Business");
+  const [kycStatus, setKycStatus] = useState("not_started");
+  const kycVerified = kycStatus === "verified";
 
   useEffect(() => {
     const session = getSession();
     if (session?.businessName) {
       setBrandName(session.businessName);
     }
+    setKycStatus(getKycStatus());
   }, []);
 
   return (
@@ -24,25 +27,36 @@ export default function Dashboard() {
         <div className="bg-atmosphere p-5 sm:p-6 md:p-7">
           <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-end">
             <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8A7A72]">
+                Dashboard Overview
+              </p>
               <h1 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">
                 Welcome back, {brandName}.
               </h1>
               <p className="mt-2 text-sm text-[#5A4A44] md:text-base">
-                Ready for your next run? Use the Request New Quote button to
-                start in seconds.
+                {kycVerified
+                  ? "Ready for your next run? Submit a new quote request in seconds."
+                  : "Complete KYC verification to unlock quote deposits and payment actions."}
               </p>
             </div>
 
             <div className="rounded-xl border border-[#E8DED5] bg-white/80 p-4 sm:p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A7A72]">
+                {kycVerified ? "Primary Action" : "Compliance Required"}
+              </p>
               <Link
-                href="/quote-request"
-                className="inline-flex w-full sm:w-auto"
+                href={
+                  kycVerified ? "/quote-request" : "/kyc?returnUrl=/dashboard"
+                }
+                className="mt-3 inline-flex w-full sm:w-auto"
               >
                 <Button
                   variant="accent"
                   className="inline-flex w-full items-center justify-center gap-2 px-5 py-3 sm:w-auto"
                 >
-                  <span>Request New Quote</span>
+                  <span>
+                    {kycVerified ? "Request New Quote" : "Complete KYC"}
+                  </span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>

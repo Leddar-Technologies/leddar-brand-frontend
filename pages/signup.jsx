@@ -5,7 +5,7 @@ import { Feather as Leather, Users, Award, ArrowRight } from "lucide-react";
 import Spinner from "../components/ui/Spinner";
 import { productTypes } from "../data/mockData";
 import { submitAccessRequest } from "../services/prototypeService";
-import { setLastBrandName } from "../services/authService";
+import { resetKycProfile, setLastBrandName } from "../services/authService";
 
 export default function Signup() {
   const router = useRouter();
@@ -32,6 +32,7 @@ export default function Signup() {
 
     try {
       await submitAccessRequest(formData);
+      resetKycProfile();
       setLastBrandName(formData.businessName);
       router.push({
         pathname: "/signup-confirmation",

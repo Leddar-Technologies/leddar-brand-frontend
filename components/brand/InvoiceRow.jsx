@@ -20,9 +20,6 @@ export default function InvoiceRow({ invoice }) {
         >
           Download PDF
         </Button>
-        <Button variant="accent" className="px-3 py-2 text-xs">
-          Pay Now
-        </Button>
       </td>
     </tr>
   );

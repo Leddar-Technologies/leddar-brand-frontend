@@ -18,8 +18,10 @@ import {
   getPricingRequestStatus,
   initializePricingDepositPayment,
 } from "../../services/prototypeService";
+import { getKycStatus } from "../../services/authService";
 
 const PENDING_QUOTE_REQUEST_KEY = "leddar_pending_quote_request_id";
+const PENDING_QUOTE_INTENT_KEY = "leddar_pending_quote_intent";
 
 export default function QuoteForm() {
   const router = useRouter();
@@ -44,6 +46,36 @@ export default function QuoteForm() {
       return;
     }
     window.localStorage.setItem(PENDING_QUOTE_REQUEST_KEY, id);
+  }
+
+  function savePendingQuoteIntent(intent) {
+    if (typeof window === "undefined" || !intent) {
+      return;
+    }
+    window.sessionStorage.setItem(
+      PENDING_QUOTE_INTENT_KEY,
+      JSON.stringify(intent),
+    );
+  }
+
+  function readPendingQuoteIntent() {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    try {
+      const raw = window.sessionStorage.getItem(PENDING_QUOTE_INTENT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearPendingQuoteIntent() {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.sessionStorage.removeItem(PENDING_QUOTE_INTENT_KEY);
   }
 
   function clearPendingRequestId() {
@@ -72,6 +104,54 @@ export default function QuoteForm() {
     }
 
     return true;
+  }
+
+  function buildQuoteRequestPayload() {
+    return {
+      productType,
+      quantity: Number(quantity),
+      requiredTimeline,
+      notes,
+      attachments: files.map((file) => ({
+        name: file.name,
+        type: file.type,
+      })),
+    };
+  }
+
+  function restoreQuoteRequestIntent(intent) {
+    if (!intent) {
+      return;
+    }
+
+    if (intent.productType) {
+      setProductType(intent.productType);
+    }
+    if (intent.quantity) {
+      setQuantity(intent.quantity);
+    }
+    if (intent.requiredTimeline) {
+      setRequiredTimeline(intent.requiredTimeline);
+    }
+    if (typeof intent.notes === "string") {
+      setNotes(intent.notes);
+    }
+    if (Array.isArray(intent.attachments)) {
+      setFiles(intent.attachments);
+    }
+  }
+
+  async function startPricingDepositFlow(payload) {
+    setDepositInitializing(true);
+    try {
+      const details = await initializePricingDepositPayment(payload);
+      setDepositDetails(details);
+      setDepositModalOpen(true);
+    } catch (error) {
+      setPricingError(error.message || "Unable to initialize deposit payment.");
+    } finally {
+      setDepositInitializing(false);
+    }
   }
 
   function normalizeFiles(incomingFiles) {
@@ -103,29 +183,19 @@ export default function QuoteForm() {
   async function handleRequestPricing() {
     setPricingError("");
 
+    if (getKycStatus() !== "verified") {
+      savePendingQuoteIntent(buildQuoteRequestPayload());
+      router.push(
+        `/kyc?returnUrl=${encodeURIComponent("/quote-request?resume=pricing")}`,
+      );
+      return;
+    }
+
     if (!validateRequestInputs()) {
       return;
     }
 
-    setDepositInitializing(true);
-    try {
-      const details = await initializePricingDepositPayment({
-        productType,
-        quantity: Number(quantity),
-        requiredTimeline,
-        notes,
-        attachments: files.map((file) => ({
-          name: file.name,
-          type: file.type,
-        })),
-      });
-      setDepositDetails(details);
-      setDepositModalOpen(true);
-    } catch (error) {
-      setPricingError(error.message || "Unable to initialize deposit payment.");
-    } finally {
-      setDepositInitializing(false);
-    }
+    await startPricingDepositFlow(buildQuoteRequestPayload());
   }
 
   async function handleConfirmDepositPayment() {
@@ -167,6 +237,32 @@ export default function QuoteForm() {
       setPricingPending(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    const resume = router.query.resume;
+    if (resume !== "pricing") {
+      return;
+    }
+
+    if (getKycStatus() !== "verified") {
+      return;
+    }
+
+    const pendingIntent = readPendingQuoteIntent();
+    if (!pendingIntent) {
+      router.replace("/quote-request", undefined, { shallow: true });
+      return;
+    }
+
+    restoreQuoteRequestIntent(pendingIntent);
+    clearPendingQuoteIntent();
+    router.replace("/quote-request", undefined, { shallow: true });
+    void startPricingDepositFlow(pendingIntent);
+  }, [router.isReady, router.query.resume]);
 
   useEffect(() => {
     if (!pricingPending || !requestId) {

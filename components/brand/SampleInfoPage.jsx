@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, CreditCard, ShieldCheck, Sparkles } from "lucide-react";
+import { useRouter } from "next/router";
 import { sampleInfoPoints, sampleSteps } from "../../data/mockData";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 import Spinner from "../ui/Spinner";
+import { getKycStatus } from "../../services/authService";
 import {
   getSampleProgress,
   initializeSamplePayment,
 } from "../../services/paymentService";
 
 export default function SampleInfoPage() {
+  const router = useRouter();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -48,6 +51,17 @@ export default function SampleInfoPage() {
     setError("");
     setPaymentDetails(null);
     setPaymentStage("form");
+  }
+
+  function handleOpenSamplePayment() {
+    if (getKycStatus() !== "verified") {
+      router.push(
+        `/kyc?returnUrl=${encodeURIComponent(router.asPath || "/sample-order")}`,
+      );
+      return;
+    }
+
+    setPaymentOpen(true);
   }
 
   useEffect(() => {
@@ -107,7 +121,7 @@ export default function SampleInfoPage() {
         <Button
           variant="accent"
           className="mt-6 w-full md:w-auto"
-          onClick={() => setPaymentOpen(true)}
+          onClick={handleOpenSamplePayment}
         >
           Pay Sample Fee - ₦30,000
         </Button>

@@ -13,6 +13,7 @@ import {
   initializeQuoteBalancePayment,
   rejectQuoteRequest,
 } from "../services/prototypeService";
+import { getKycStatus } from "../services/authService";
 
 const PENDING_QUOTE_REQUEST_KEY = "leddar_pending_quote_request_id";
 
@@ -124,6 +125,14 @@ export default function QuoteResponsePage() {
 
   async function handleOpenApproveModal() {
     if (!requestId) {
+      return;
+    }
+
+    if (getKycStatus() !== "verified") {
+      const fallbackReturnUrl = requestId
+        ? `/quote-response?requestId=${requestId}`
+        : "/quote-response";
+      router.push(`/kyc?returnUrl=${encodeURIComponent(fallbackReturnUrl)}`);
       return;
     }
 
@@ -376,7 +385,7 @@ export default function QuoteResponsePage() {
                 <span>Preparing Payment...</span>
               </span>
             ) : (
-              "Approve &amp; Proceed to Payment"
+              "Approve & Proceed to Payment"
             )}
           </Button>
           <Button
