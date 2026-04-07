@@ -209,9 +209,12 @@ export const sampleSteps = [
 ];
 
 export const productTypes = [
-  "Bags",
-  "Wallets",
+  "Men Footwear",
+  "Women Footwear",
+  "Men Bags",
+  "Women Bags",
+  "Wallets & Small Goods",
   "Belts",
-  "Shoes",
-  "Accessories",
+  "Custom Leather Products",
+  "Not sure yet"
 ];

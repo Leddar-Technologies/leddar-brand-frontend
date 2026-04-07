@@ -39,34 +39,41 @@ export default function SignupConfirmation() {
             <CheckCircle className="h-8 w-8 text-success" />
           </div>
           <h1 className="mb-2 text-2xl font-bold text-ink">
-            Application Submitted!
+            You're in, we've received your request
           </h1>
           <p className="text-[#5A4A44]">
-            Thank you, {contactName}, for your interest in partnering with
-            Leddar. Your request has been submitted successfully.
+            {contactName}, your request has been successfully submitted. We’re
+            reviewing your production needs and preparing the best match for
+            you.
           </p>
         </div>
 
         <div className="mb-6 rounded-lg border border-[#E8DED5] bg-[#F4EEE9] p-6">
           <div className="mb-4 flex items-center justify-center gap-3">
             <Clock className="h-5 w-5 text-gold" />
-            <span className="font-medium text-ink">What&apos;s Next?</span>
+            <span className="font-medium text-ink">What Happens Next?</span>
           </div>
           <div className="space-y-3 text-sm text-[#5A4A44]">
             <div className="flex items-center gap-3">
               <div className="h-2 w-2 rounded-full bg-gold" />
-              <span>We&apos;ll review your application within 24-48 hours</span>
+              <span>We review your request within 24–48 hours</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-2 w-2 rounded-full bg-gold" />
               <span>
-                Our team will contact you for any additional information
+                We match you with verified artisans suited to your needs
               </span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-2 w-2 rounded-full bg-gold" />
               <span>
-                Once approved, you&apos;ll receive dashboard access credentials
+                You receive access to your production dashboard
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 w-2 rounded-full bg-gold" />
+              <span>
+                You’ll be notified as soon as your account is ready.
               </span>
             </div>
           </div>
@@ -74,17 +81,20 @@ export default function SignupConfirmation() {
 
         <div className="mb-6 flex items-center justify-center gap-2 text-[#7F7068]">
           <Mail className="h-4 w-4" />
-          <span className="text-sm">Check your email for updates</span>
+          <span className="text-sm">Check your email for updates and next steps</span>
         </div>
 
         <button
           onClick={handleApproval}
           className="w-full rounded-lg bg-leather px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-[#5A2F22]"
         >
-          Simulate Approval (Demo)
+          Go to Dashboard
         </button>
         <p className="mt-2 text-xs text-[#8A7A72]">
-          Click above to simulate approval and access the dashboard
+          Need help? Contact support <a href="mailto:support@leddar.com" className="text-gold underline">
+            support@leddar.com
+          </a>
+
         </p>
       </div>
     </div>
