@@ -1,19 +1,32 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
+import { useDispatch, useSelector } from "react-redux";
 import Button from "../components/ui/Button";
 import { productTypes } from "../data/mockData";
-import { submitAccessRequest } from "../services/prototypeService";
+import { submitAccessRequest } from "../store/slices/accessRequestSlice";
 
 export default function Signup() {
   const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
+  const dispatch = useDispatch();
+
+  const { loading, error } = useSelector((state) => state.accessRequest);
+
+  // const [formData, setFormData] = useState({
+  //   businessName: "",
+  //   productType: productTypes[0],
+  //   estimatedQuantity: "",
+  //   email: "",
+  //   whatsappNumber: "",
+  //   additionalInfo: "",
+  // });
+
   const [formData, setFormData] = useState({
     businessName: "",
     productType: productTypes[0],
-    estimatedQuantity: "",
     email: "",
-    whatsappNumber: "",
-    additionalInfo: "",
+    password: "", // Added to match Zod
+    whatsapp: "", // Changed from whatsappNumber
+    contactInfo: "", // Changed from additionalInfo
   });
 
   function updateField(event) {
@@ -23,12 +36,12 @@ export default function Signup() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setSubmitting(true);
+
     try {
-      await submitAccessRequest(formData);
+      await dispatch(submitAccessRequest(formData)).unwrap();
       router.push("/signup-confirmation");
-    } finally {
-      setSubmitting(false);
+    } catch (err) {
+      console.error(err);
     }
   }
 
@@ -38,6 +51,7 @@ export default function Signup() {
         <h1 className="text-2xl font-semibold text-ink">
           Request Access to Leddar.
         </h1>
+
         <div className="mt-6 grid gap-4">
           <div>
             <label className="label">Business Name</label>
@@ -49,6 +63,7 @@ export default function Signup() {
               required
             />
           </div>
+
           <div>
             <label className="label">Product Type</label>
             <select
@@ -59,10 +74,13 @@ export default function Signup() {
               required
             >
               {productTypes.map((type) => (
-                <option key={type}>{type}</option>
+                <option key={type} value={type}>
+                  {type}
+                </option>
               ))}
             </select>
           </div>
+
           <div>
             <label className="label">Estimated Quantity</label>
             <input
@@ -74,6 +92,7 @@ export default function Signup() {
               required
             />
           </div>
+
           <div>
             <label className="label">Email Address</label>
             <input
@@ -85,6 +104,7 @@ export default function Signup() {
               required
             />
           </div>
+
           <div>
             <label className="label">WhatsApp Number</label>
             <input
@@ -95,17 +115,21 @@ export default function Signup() {
               required
             />
           </div>
+
           <div>
             <label className="label">Additional Info</label>
             <textarea
               className="input min-h-24"
-              name="additionalInfo"
-              value={formData.additionalInfo}
+              name="contactInfo"
+              value={formData.contactInfo}
               onChange={updateField}
             />
           </div>
-          <Button type="submit" disabled={submitting} className="mt-2">
-            {submitting ? "Submitting Request..." : "Submit Request"}
+
+          {error && <p className="text-red-500">{error}</p>}
+
+          <Button type="submit" disabled={loading} className="mt-2">
+            {loading ? "Submitting Request..." : "Submit Request"}
           </Button>
         </div>
       </form>
