@@ -8,7 +8,7 @@ import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import Spinner from "../components/ui/Spinner";
 import {
-  getQuoteResponse,
+  getOrderStatus,
   listPricingRequests,
   initializeQuoteBalancePayment,
   rejectQuoteRequest,
@@ -17,7 +17,7 @@ import { getKycStatus } from "../services/authService";
 
 const PENDING_QUOTE_REQUEST_KEY = "leddar_pending_quote_request_id";
 
-export default function QuoteResponsePage() {
+export default function OrderStatus() {
   const router = useRouter();
   const [requestId, setRequestId] = useState("");
 
@@ -83,7 +83,7 @@ export default function QuoteResponsePage() {
       </p>
 
       {quoteHistory.length === 0 ? (
-        <p className="mt-4 text-sm text-[#7B6A62]">No quote requests yet.</p>
+        <p className="mt-4 text-sm text-[#7B6A62]">No new orders yet.</p>
       ) : (
         <div className="mt-4 space-y-3">
           {quoteHistory.map((item) => (
@@ -130,8 +130,8 @@ export default function QuoteResponsePage() {
 
     if (getKycStatus() !== "verified") {
       const fallbackReturnUrl = requestId
-        ? `/quote-response?requestId=${requestId}`
-        : "/quote-response";
+        ? `/order-status?requestId=${requestId}`
+        : "/order-status";
       router.push(`/kyc?returnUrl=${encodeURIComponent(fallbackReturnUrl)}`);
       return;
     }
@@ -206,7 +206,7 @@ export default function QuoteResponsePage() {
       setError("");
 
       try {
-        const response = await getQuoteResponse(requestId);
+        const response = await getOrderStatus(requestId);
         if (active) {
           if (
             typeof window !== "undefined" &&
@@ -246,12 +246,12 @@ export default function QuoteResponsePage() {
             <Badge status="Pending" />
           </div>
           <p className="text-sm text-[#5A4A44]">
-            No pricing request selected yet. Submit a quote request to receive a
+            No pricing request selected yet. Submit a new order to receive a
             response from admin.
           </p>
           <div className="mt-6">
-            <Link href="/quote-request" className="inline-flex">
-              <Button variant="accent">Go to Quote Request</Button>
+            <Link href="/new-order" className="inline-flex">
+              <Button variant="accent">Go to New Order</Button>
             </Link>
           </div>
         </div>
@@ -306,7 +306,7 @@ export default function QuoteResponsePage() {
 
             <div className="rounded-xl border border-[#F1C1C1] bg-[#FFF3F3] p-4 text-sm text-[#5A4A44]">
               <p className="font-semibold text-ink">Quote was rejected</p>
-              <p className="mt-2">The brand has rejected this quote request.</p>
+              <p className="mt-2">The brand has rejected this new order.</p>
               {quoteResponse.rejectionReason ? (
                 <p className="mt-3 rounded-lg border border-[#E8B5B5] bg-white p-3 text-sm text-[#5A4A44]">
                   <span className="font-semibold text-ink">Reason:</span>{" "}

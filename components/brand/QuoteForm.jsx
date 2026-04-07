@@ -192,7 +192,7 @@ export default function QuoteForm() {
     if (getKycStatus() !== "verified") {
       savePendingQuoteIntent(buildQuoteRequestPayload());
       router.push(
-        `/kyc?returnUrl=${encodeURIComponent("/quote-request?resume=pricing")}`,
+        `/kyc?returnUrl=${encodeURIComponent("/new-order?resume=pricing")}`,
       );
       return;
     }
@@ -207,7 +207,7 @@ export default function QuoteForm() {
       return;
     }
 
-    router.push("/sample-order");
+    router.push("/sample-requests");
   }
 
   async function handleConfirmDepositPayment() {
@@ -228,7 +228,7 @@ export default function QuoteForm() {
       setRequestId(result.id);
       savePendingRequestId(result.id);
       setDepositModalOpen(false);
-      router.push(`/quote-response?requestId=${result.id}`);
+      router.push(`/order-status?requestId=${result.id}`);
     } catch (error) {
       setPricingError(error.message || "Unable to confirm deposit payment.");
     } finally {
@@ -266,13 +266,13 @@ export default function QuoteForm() {
 
     const pendingIntent = readPendingQuoteIntent();
     if (!pendingIntent) {
-      router.replace("/quote-request", undefined, { shallow: true });
+      router.replace("/new-order", undefined, { shallow: true });
       return;
     }
 
     restoreQuoteRequestIntent(pendingIntent);
     clearPendingQuoteIntent();
-    router.replace("/quote-request", undefined, { shallow: true });
+    router.replace("/new-order", undefined, { shallow: true });
     void startPricingDepositFlow(pendingIntent);
   }, [router.isReady, router.query.resume]);
 
@@ -292,7 +292,7 @@ export default function QuoteForm() {
         const response = await getPricingRequestStatus(requestId);
         if (response.status === "pricing_ready") {
           clearPendingRequestId();
-          router.push(response.redirectPath || "/quote-response");
+          router.push(response.redirectPath || "/order-status");
         }
       } catch (error) {
         setPricingError(error.message || "Unable to check pricing status.");
@@ -309,7 +309,7 @@ export default function QuoteForm() {
   return (
     <div className="space-y-6">
       <div className="card p-6">
-        <h1 className="page-title">Quote Request</h1>
+        <h1 className="page-title">New Order</h1>
         <p className="page-subtitle">
           Upload your product spec and request a pricing route.
         </p>
@@ -444,7 +444,7 @@ export default function QuoteForm() {
                   </Button>
                 </Link>
                 <Link
-                  href={`/quote-response?requestId=${requestId}`}
+                  href={`/order-status?requestId=${requestId}`}
                   className="inline-flex"
                 >
                   <Button variant="accent" className="w-full sm:w-auto">

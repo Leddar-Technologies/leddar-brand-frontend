@@ -35,7 +35,7 @@ export default function Dashboard() {
               </h1>
               <p className="mt-2 text-sm text-[#5A4A44] md:text-base">
                 {kycVerified
-                  ? "Ready for your next run? Submit a new quote request in seconds."
+                  ? "Ready for your next run? Submit a new order in seconds."
                   : "Complete KYC verification to unlock quote deposits and payment actions."}
               </p>
             </div>
@@ -45,18 +45,14 @@ export default function Dashboard() {
                 {kycVerified ? "Primary Action" : "Compliance Required"}
               </p>
               <Link
-                href={
-                  kycVerified ? "/quote-request" : "/kyc?returnUrl=/dashboard"
-                }
+                href={kycVerified ? "/new-order" : "/kyc?returnUrl=/dashboard"}
                 className="mt-3 inline-flex w-full sm:w-auto"
               >
                 <Button
                   variant="accent"
                   className="inline-flex w-full items-center justify-center gap-2 px-5 py-3 sm:w-auto"
                 >
-                  <span>
-                    {kycVerified ? "Request New Quote" : "Complete KYC"}
-                  </span>
+                  <span>{kycVerified ? "New Order" : "Complete KYC"}</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>

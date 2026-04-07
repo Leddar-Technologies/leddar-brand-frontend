@@ -137,7 +137,7 @@ export async function getPricingRequestStatus(requestId) {
     ? {
         id: requestId,
         status: "pricing_ready",
-        redirectPath: `/quote-response?requestId=${requestId}`,
+        redirectPath: `/order-status?requestId=${requestId}`,
       }
     : {
         id: requestId,
@@ -145,7 +145,7 @@ export async function getPricingRequestStatus(requestId) {
       };
 }
 
-export async function getQuoteResponse(requestId) {
+export async function getOrderStatus(requestId) {
   // Replace with GET /quotes/pricing-requests/:id/response when backend is ready.
   await wait(450);
 
@@ -198,7 +198,7 @@ export async function initializeQuoteBalancePayment(requestId) {
 
   const request = mockPricingRequests[requestId];
   if (!request) {
-    throw new Error("Quote request not found.");
+    throw new Error("New order not found.");
   }
 
   const ready = Date.now() >= request.readyAt;
@@ -223,7 +223,7 @@ export async function rejectQuoteRequest(requestId, reason) {
 
   const request = mockPricingRequests[requestId];
   if (!request) {
-    throw new Error("Quote request not found.");
+    throw new Error("New order not found.");
   }
 
   request.status = "rejected";

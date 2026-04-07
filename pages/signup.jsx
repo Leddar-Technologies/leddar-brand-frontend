@@ -210,7 +210,7 @@ export default function Signup() {
                   value={formData.email}
                   onChange={updateField}
                   className="w-full rounded-lg border border-[#D7CBC1] px-4 py-3 text-ink focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#C49A3C55]"
-                  placeholder="you@yourbrand.com"
+                  placeholder="johndoe@gmail.com"
                 />
               </div>
 

@@ -56,7 +56,7 @@ export default function SampleInfoPage() {
   function handleOpenSamplePayment() {
     if (getKycStatus() !== "verified") {
       router.push(
-        `/kyc?returnUrl=${encodeURIComponent(router.asPath || "/sample-order")}`,
+        `/kyc?returnUrl=${encodeURIComponent(router.asPath || "/sample-requests")}`,
       );
       return;
     }
