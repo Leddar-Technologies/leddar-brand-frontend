@@ -36,7 +36,7 @@ export default function Dashboard() {
               <p className="mt-2 text-sm text-[#5A4A44] md:text-base">
                 {kycVerified
                   ? "Ready for your next run? Submit a new order in seconds."
-                  : "Complete KYC verification to unlock quote deposits and payment actions."}
+                  : "Complete KYC verification to unlock payment actions & order approvals."}
               </p>
             </div>
 

@@ -105,7 +105,7 @@ export default function SampleInfoPage() {
     <div className="space-y-6">
       <div className="card p-6">
         <h1 className="page-title">
-          Before You Proceed - Here&apos;s How Samples Work
+          Start with a Sample — Validate Before You Produce
         </h1>
         <ul className="mt-5 space-y-3">
           {sampleInfoPoints.map((point) => (

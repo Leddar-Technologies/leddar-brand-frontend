@@ -309,9 +309,9 @@ export default function QuoteForm() {
   return (
     <div className="space-y-6">
       <div className="card p-6">
-        <h1 className="page-title">New Order</h1>
+        <h1 className="page-title">Production Request</h1>
         <p className="page-subtitle">
-          Upload your product spec and request a pricing route.
+          Tell us what you want to produce, we’ll match you with the right artisan and provide pricing
         </p>
 
         <div className="mt-6 grid gap-5">
@@ -397,9 +397,10 @@ export default function QuoteForm() {
               required
             >
               <option value="">Select timeline</option>
-              <option value="1-2 weeks">1-2 weeks</option>
+              <option value="1-2 weeks">1-2 weeks(urgent)</option>
               <option value="3-4 weeks">3-4 weeks</option>
               <option value="1-2 months">1-2 months</option>
+              <option value="1-2 months">2–3 months</option>
               <option value="Flexible">Flexible</option>
             </select>
           </div>
@@ -461,11 +462,10 @@ export default function QuoteForm() {
         <div className="card p-6">
           <FlaskConical className="h-7 w-7 text-gold" />
           <h3 className="mt-3 text-lg font-semibold text-ink">
-            Request Sample First
+            Start with a Sample
           </h3>
           <p className="mt-2 text-sm text-[#5A4A44]">
-            Get a physical sample produced first. Pay a flat fee, review via
-            video, then proceed.
+            Produce a sample first to confirm quality before full production
           </p>
           <div className="mt-4">
             <Button
@@ -484,8 +484,7 @@ export default function QuoteForm() {
             Request Pricing for Production
           </h3>
           <p className="mt-2 text-sm text-[#5A4A44]">
-            Pay a refundable ₦20,000 deposit to unlock your production price
-            list.
+            Get matched and receive production pricing directly
           </p>
           <div className="mt-4">
             <Button

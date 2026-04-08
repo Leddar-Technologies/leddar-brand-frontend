@@ -27,7 +27,7 @@ export default function Topbar() {
           LEDDAR Brand Portal
         </p>
         <p className="text-sm font-semibold text-ink md:text-base">
-          Crafted to scale premium leather production.
+          Manage your production with confidence
         </p>
       </div>
       <div className="flex items-center gap-2 md:gap-3">
