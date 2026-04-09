@@ -23,6 +23,11 @@ export default function SampleInfoPage() {
   const [sampleRequestId, setSampleRequestId] = useState("");
   const [currentSampleStatus, setCurrentSampleStatus] = useState("requested");
   const [progressLoading, setProgressLoading] = useState(false);
+  const [productionActionLoading, setProductionActionLoading] = useState(false);
+  const [productionDecision, setProductionDecision] = useState("idle");
+  const [productionDecisionError, setProductionDecisionError] = useState("");
+
+  const PENDING_QUOTE_INTENT_KEY = "leddar_pending_quote_intent";
 
   async function handleInitiatePayment(event) {
     event.preventDefault();
@@ -64,6 +69,51 @@ export default function SampleInfoPage() {
     setPaymentOpen(true);
   }
 
+  function getDefaultProductionIntent() {
+    return {
+      productType: "Custom Leather Products",
+      quantity: 100,
+      requiredTimeline: "3-4 weeks",
+      notes: `Sample ${sampleRequestId || "request"} approved. Request production pricing and apply \u20a630,000 sample fee credit.`,
+      attachments: [],
+    };
+  }
+
+  async function handleProceedToProductionPricing() {
+    setProductionDecisionError("");
+    setProductionDecision("idle");
+    setProductionActionLoading(true);
+
+    try {
+      if (getKycStatus() !== "verified") {
+        router.push(
+          `/kyc?returnUrl=${encodeURIComponent(router.asPath || "/sample-requests")}`,
+        );
+        return;
+      }
+
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          PENDING_QUOTE_INTENT_KEY,
+          JSON.stringify(getDefaultProductionIntent()),
+        );
+      }
+
+      await router.push("/new-order?resume=pricing&source=sample");
+    } catch (err) {
+      setProductionDecisionError(
+        err.message || "Unable to continue to production pricing.",
+      );
+    } finally {
+      setProductionActionLoading(false);
+    }
+  }
+
+  function handleRejectProduction() {
+    setProductionDecision("rejected");
+    setProductionDecisionError("");
+  }
+
   useEffect(() => {
     if (!sampleRequestId) {
       return;
@@ -100,6 +150,9 @@ export default function SampleInfoPage() {
     0,
     sampleSteps.findIndex((step) => step.key === currentSampleStatus),
   );
+  const canDecideProduction =
+    currentSampleStatus === "sample_ready" ||
+    currentSampleStatus === "completed";
 
   return (
     <div className="space-y-6">
@@ -185,6 +238,60 @@ export default function SampleInfoPage() {
             );
           })}
         </div>
+
+        {canDecideProduction ? (
+          <div className="mt-6 rounded-xl border border-[#E6D7CB] bg-[#FFF8EF] p-4 sm:p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6A39]">
+              Sample Approved - Next Decision
+            </p>
+            <h3 className="mt-2 text-base font-semibold text-ink">
+              Proceed to production pricing or reject this production run
+            </h3>
+            <p className="mt-2 text-sm text-[#5A4A44]">
+              Your sample fee of \u20a630,000 will be credited from the full
+              production total.
+            </p>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <Button
+                variant="accent"
+                className="w-full sm:w-auto"
+                onClick={handleProceedToProductionPricing}
+                disabled={productionActionLoading}
+              >
+                {productionActionLoading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner size="sm" className="text-espresso" />
+                    <span>Submitting Production Request...</span>
+                  </span>
+                ) : (
+                  "Go Ahead - Request Production Pricing"
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={handleRejectProduction}
+                disabled={productionActionLoading}
+              >
+                Reject Production
+              </Button>
+            </div>
+
+            {productionDecision === "rejected" ? (
+              <p className="mt-3 text-sm text-[#7B6A62]">
+                Production request rejected. You can continue with corrections
+                or submit a fresh sample when ready.
+              </p>
+            ) : null}
+
+            {productionDecisionError ? (
+              <p className="mt-3 text-sm text-[#B42318]">
+                {productionDecisionError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <Modal open={paymentOpen} title="Paystack Checkout" onClose={closeModal}>

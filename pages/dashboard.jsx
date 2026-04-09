@@ -36,23 +36,23 @@ export default function Dashboard() {
               <p className="mt-2 text-sm text-[#5A4A44] md:text-base">
                 {kycVerified
                   ? "Ready for your next run? Submit a new order in seconds."
-                  : "Complete KYC verification to unlock payment actions & order approvals."}
+                  : "Place a new order now to move from concept to production faster."}
               </p>
             </div>
 
             <div className="rounded-xl border border-[#E8DED5] bg-white/80 p-4 sm:p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A7A72]">
-                {kycVerified ? "Primary Action" : "Compliance Required"}
+                {kycVerified ? "Primary Action" : "Recommended Next Step"}
               </p>
               <Link
-                href={kycVerified ? "/new-order" : "/kyc?returnUrl=/dashboard"}
+                href="/new-order"
                 className="mt-3 inline-flex w-full sm:w-auto"
               >
                 <Button
                   variant="accent"
                   className="inline-flex w-full items-center justify-center gap-2 px-5 py-3 sm:w-auto"
                 >
-                  <span>{kycVerified ? "New Order" : "Complete KYC"}</span>
+                  <span>{kycVerified ? "New Order" : "Create New Order"}</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>

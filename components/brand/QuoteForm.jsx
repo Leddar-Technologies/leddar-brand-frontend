@@ -5,7 +5,6 @@ import {
   CreditCard,
   FileUp,
   FlaskConical,
-  HandCoins,
   ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/router";
@@ -156,6 +155,31 @@ export default function QuoteForm() {
     }
   }
 
+  async function submitPricingFromSampleCredit(payload) {
+    setDepositInitializing(true);
+    setPricingError("");
+
+    try {
+      const details = await initializePricingDepositPayment(payload);
+      const result = await confirmPricingDepositPayment({
+        draftId: details.draftId,
+        paymentReference: details.paymentReference,
+      });
+
+      setPricingPending(true);
+      setRequestId(result.id);
+      savePendingRequestId(result.id);
+      router.push(`/order-status?requestId=${result.id}`);
+    } catch (error) {
+      setPricingError(
+        error.message ||
+          "Unable to submit production pricing request from sample approval.",
+      );
+    } finally {
+      setDepositInitializing(false);
+    }
+  }
+
   function normalizeFiles(incomingFiles) {
     const validFiles = Array.from(incomingFiles).filter((file) => {
       const isPdf = file.type === "application/pdf";
@@ -272,7 +296,14 @@ export default function QuoteForm() {
 
     restoreQuoteRequestIntent(pendingIntent);
     clearPendingQuoteIntent();
+    const isFromSampleFlow = router.query.source === "sample";
     router.replace("/new-order", undefined, { shallow: true });
+
+    if (isFromSampleFlow) {
+      void submitPricingFromSampleCredit(pendingIntent);
+      return;
+    }
+
     void startPricingDepositFlow(pendingIntent);
   }, [router.isReady, router.query.resume]);
 
@@ -311,7 +342,8 @@ export default function QuoteForm() {
       <div className="card p-6">
         <h1 className="page-title">Production Request</h1>
         <p className="page-subtitle">
-          Tell us what you want to produce, we’ll match you with the right artisan and provide pricing
+          Tell us what you want to produce, we’ll match you with the right
+          artisan and provide pricing
         </p>
 
         <div className="mt-6 grid gap-5">
@@ -459,7 +491,7 @@ export default function QuoteForm() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="card p-6">
+        <div className="card p-6 md:col-span-2">
           <FlaskConical className="h-7 w-7 text-gold" />
           <h3 className="mt-3 text-lg font-semibold text-ink">
             Start with a Sample
@@ -477,35 +509,11 @@ export default function QuoteForm() {
             </Button>
           </div>
         </div>
-
-        <div className="card p-6">
-          <HandCoins className="h-7 w-7 text-leather" />
-          <h3 className="mt-3 text-lg font-semibold text-ink">
-            Request Pricing for Production
-          </h3>
-          <p className="mt-2 text-sm text-[#5A4A44]">
-            Get matched and receive production pricing directly
-          </p>
-          <div className="mt-4">
-            <Button
-              onClick={handleRequestPricing}
-              disabled={depositInitializing || !canSubmitRequest}
-            >
-              {depositInitializing ? (
-                <span className="inline-flex items-center gap-2">
-                  <Spinner size="sm" className="text-white" />
-                  <span>Preparing Deposit Checkout...</span>
-                </span>
-              ) : (
-                "Request Pricing"
-              )}
-            </Button>
-            {pricingError ? (
-              <p className="mt-2 text-sm text-[#B42318]">{pricingError}</p>
-            ) : null}
-          </div>
-        </div>
       </div>
+
+      {pricingError ? (
+        <p className="text-sm text-[#B42318]">{pricingError}</p>
+      ) : null}
 
       <Modal
         open={depositModalOpen}

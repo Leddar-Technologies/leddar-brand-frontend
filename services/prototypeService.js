@@ -5,7 +5,7 @@ function wait(ms = 700) {
 const mockPricingRequests = {};
 const mockPricingRequestDrafts = {};
 
-const PRICE_DEPOSIT_AMOUNT = 20000;
+const PRICE_DEPOSIT_AMOUNT = 30000;
 const MOCK_QUOTE_TOTAL_AMOUNT = 70000;
 
 function buildMockQuote(payload) {
