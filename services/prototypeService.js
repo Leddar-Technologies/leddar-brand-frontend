@@ -1,3 +1,9 @@
+import {
+  calculateTotalWithVat,
+  formatNaira,
+  formatVatPercent,
+} from "../utils/pricing";
+
 function wait(ms = 700) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -5,23 +11,32 @@ function wait(ms = 700) {
 const mockPricingRequests = {};
 const mockPricingRequestDrafts = {};
 
-const PRICE_DEPOSIT_AMOUNT = 30000;
-const MOCK_QUOTE_TOTAL_AMOUNT = 70000;
+const PRICE_DEPOSIT_AMOUNT = 20000;
+const MOCK_QUOTE_SUBTOTAL_AMOUNT = 70000;
 
 function buildMockQuote(payload) {
-  const balanceAmount = MOCK_QUOTE_TOTAL_AMOUNT - PRICE_DEPOSIT_AMOUNT;
+  const { vatAmount, totalAmount } = calculateTotalWithVat(
+    MOCK_QUOTE_SUBTOTAL_AMOUNT,
+  );
+  const balanceAmount = totalAmount - PRICE_DEPOSIT_AMOUNT;
 
   return {
     breakdown: [
       { item: "Materials", amount: "₦45,000" },
       { item: "Labour", amount: "₦25,000" },
       {
+        item: `VAT (${formatVatPercent()})`,
+        amount: formatNaira(vatAmount),
+      },
+      {
         item: "Timeline",
         amount: payload?.requiredTimeline || "To be confirmed",
       },
     ],
-    total: "₦70,000",
-    totalAmount: MOCK_QUOTE_TOTAL_AMOUNT,
+    subtotalAmount: MOCK_QUOTE_SUBTOTAL_AMOUNT,
+    vatAmount,
+    total: formatNaira(totalAmount),
+    totalAmount,
     depositAmount: PRICE_DEPOSIT_AMOUNT,
     balanceAmount,
   };
@@ -185,6 +200,8 @@ export async function getOrderStatus(requestId) {
     status: "pricing_ready",
     breakdown: request.quote.breakdown,
     total: request.quote.total,
+    subtotalAmount: request.quote.subtotalAmount,
+    vatAmount: request.quote.vatAmount,
     totalAmount: request.quote.totalAmount,
     depositAmount: request.quote.depositAmount,
     balanceAmount: request.quote.balanceAmount,
@@ -211,6 +228,8 @@ export async function initializeQuoteBalancePayment(requestId) {
   return {
     requestId,
     authorizationUrl: `https://paystack.com/pay/mock-balance-${requestId}`,
+    subtotalAmount: request.quote.subtotalAmount,
+    vatAmount: request.quote.vatAmount,
     amountDue: request.quote.balanceAmount,
     depositApplied: request.quote.depositAmount,
     totalAmount: request.quote.totalAmount,

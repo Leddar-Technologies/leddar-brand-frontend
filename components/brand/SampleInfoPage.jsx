@@ -10,6 +10,15 @@ import {
   getSampleProgress,
   initializeSamplePayment,
 } from "../../services/paymentService";
+import {
+  calculateTotalWithVat,
+  formatNaira,
+  formatVatPercent,
+} from "../../utils/pricing";
+
+const SAMPLE_BASE_FEE = 30000;
+const SAMPLE_PAYMENT = calculateTotalWithVat(SAMPLE_BASE_FEE);
+const VAT_LABEL = `VAT (${formatVatPercent()})`;
 
 export default function SampleInfoPage() {
   const router = useRouter();
@@ -38,7 +47,7 @@ export default function SampleInfoPage() {
     try {
       const result = await initializeSamplePayment({
         email,
-        amount: 30000,
+        amount: SAMPLE_BASE_FEE,
       });
       setPaymentDetails(result);
       setSampleRequestId(result.sampleRequestId || "");
@@ -176,7 +185,7 @@ export default function SampleInfoPage() {
           className="mt-6 w-full md:w-auto"
           onClick={handleOpenSamplePayment}
         >
-          Pay Sample Fee - ₦30,000
+          Pay Sample Fee - ₦30,000 (+ VAT)
         </Button>
       </div>
 
@@ -304,7 +313,7 @@ export default function SampleInfoPage() {
               Paystack Secure Checkout
             </p>
             <p className="truncate text-sm text-[#5A4A44]">
-              Sample fee payment for Leddar - ₦30,000
+              Sample fee payment for Leddar - {formatNaira(SAMPLE_BASE_FEE)}
             </p>
           </div>
           <span className="inline-flex shrink-0 items-center rounded-full bg-[#2D6A4F14] px-2.5 py-1 text-[11px] font-semibold text-success">
@@ -351,13 +360,34 @@ export default function SampleInfoPage() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">
-                  Amount
+                  Sample Fee
                 </p>
-                <p className="mt-1 font-semibold text-ink">₦30,000</p>
+                <p className="mt-1 font-semibold text-ink">
+                  {formatNaira(paymentDetails.amount || SAMPLE_BASE_FEE)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">
+                  {VAT_LABEL}
+                </p>
+                <p className="mt-1 font-semibold text-ink">
+                  {formatNaira(paymentDetails.vatAmount || SAMPLE_PAYMENT.vatAmount)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">
+                  Total Payable
+                </p>
+                <p className="mt-1 font-semibold text-ink">
+                  {formatNaira(
+                    paymentDetails.totalAmount || SAMPLE_PAYMENT.totalAmount,
+                  )}
+                </p>
               </div>
               <div className="sm:col-span-2 flex items-center gap-2 rounded-lg bg-[#FAF4E7] px-3 py-2 text-xs text-[#7A5A2A]">
                 <Sparkles className="h-4 w-4" />
-                Ready to hand off to Paystack when your real API is connected.
+                VAT is shown for prototype visibility; real backend should
+                return official tax values.
               </div>
             </div>
 
@@ -384,7 +414,8 @@ export default function SampleInfoPage() {
         ) : (
           <form className="space-y-4" onSubmit={handleInitiatePayment}>
             <p className="text-sm text-[#5A4A44]">
-              Initialize the sample fee payment through Paystack.
+              Initialize the sample fee payment through Paystack. VAT is{" "}
+              {formatVatPercent()} of the sample fee.
             </p>
 
             <div>

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/router";
-import { Feather as Leather, Users, Award, ArrowRight } from "lucide-react";
+import { Users, Award, ArrowRight, Zap } from "lucide-react";
 import Spinner from "../components/ui/Spinner";
 import { productTypes } from "../data/mockData";
 import { submitAccessRequest } from "../services/prototypeService";
@@ -62,13 +63,17 @@ export default function Signup() {
     <div className="min-h-screen bg-atmosphere">
       <header className="border-b border-[#E8DED5] bg-white/80 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-leather p-2">
-              <Leather className="h-8 w-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-ink">Leddar</h1>
+          <div className="flex items-center">
+            <Image
+              src="/leddar-logo.svg"
+              alt="Leddar"
+              width={180}
+              height={56}
+              className="h-12 w-auto"
+              priority
+            />
           </div>
-          <div className="text-sm text-[#5A4A44]">
+          <div className="hidden text-xs text-[#5A4A44] sm:inline sm:text-sm lg:text-sm">
             Premium Leather Manufacturing
           </div>
         </div>
@@ -113,7 +118,7 @@ export default function Signup() {
               </div>
 
               <div className="rounded-xl border border-[#E8DED5] bg-white p-6 shadow-sm">
-                <Leather className="mb-3 h-8 w-8 text-gold" />
+                <Zap className="mb-3 h-8 w-8 text-gold" />
                 <h3 className="mb-2 font-semibold text-ink">
                   Production Built Around You
                 </h3>

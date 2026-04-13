@@ -1,3 +1,5 @@
+import { calculateTotalWithVat } from "../utils/pricing";
+
 function wait(ms = 600) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -40,6 +42,13 @@ export async function initializeSamplePayment({ email, amount }) {
     throw new Error("Email is required to initialize payment.");
   }
 
+  const baseAmount = Number(amount);
+  if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
+    throw new Error("A valid sample fee amount is required.");
+  }
+
+  const { vatAmount, totalAmount } = calculateTotalWithVat(baseAmount);
+
   const sampleRequestId = `SAM-${Date.now()}`;
   mockSampleRequests[sampleRequestId] = {
     createdAt: Date.now(),
@@ -48,7 +57,9 @@ export async function initializeSamplePayment({ email, amount }) {
   return {
     reference: `PAY-${Date.now()}`,
     authorizationUrl: "https://paystack.com/pay/mock-sample-fee",
-    amount,
+    amount: baseAmount,
+    vatAmount,
+    totalAmount,
     sampleRequestId,
   };
 }

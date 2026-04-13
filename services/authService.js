@@ -231,7 +231,6 @@ export function logout() {
     return;
   }
   window.localStorage.removeItem(SESSION_KEY);
-  clearKycState();
 }
 
 export function resetKycProfile() {

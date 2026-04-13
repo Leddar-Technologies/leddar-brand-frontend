@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/router";
 import { X } from "lucide-react";
 import { sidebarLinks } from "../../data/mockData";
@@ -14,8 +15,15 @@ export default function Sidebar({ mobile = false, onClose }) {
           : "h-full lg:min-h-screen lg:w-64 xl:w-72"
       }`}
     >
-      <div className="mb-8 flex items-center justify-between text-xl font-bold tracking-wide text-gold">
-        <span>LEDDAR</span>
+      <div className="mb-8 flex items-center justify-between">
+        <Image
+          src="/leddar-logo.svg"
+          alt="Leddar"
+          width={180}
+          height={56}
+          className="h-8 w-auto"
+          priority
+        />
         {mobile ? (
           <button
             aria-label="Close menu"
