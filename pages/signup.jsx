@@ -11,6 +11,7 @@ export default function Signup() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [responseMessage, setResponseMessage] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [formData, setFormData] = useState({
     businessName: "",
     productType: "",
@@ -27,6 +28,12 @@ export default function Signup() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+
+    if (!acceptTerms) {
+      setResponseMessage("Please accept the Terms & Conditions to continue.");
+      return;
+    }
+
     setSubmitting(true);
     setResponseMessage("");
 
@@ -229,9 +236,40 @@ export default function Signup() {
                 />
               </div>
 
+              <div className="rounded-lg border border-[#E8DED5] bg-[#FAFAF8] p-4">
+                <label className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    className="mt-1 h-5 w-5 cursor-pointer rounded border-[#D7CBC1] accent-leather"
+                  />
+                  <span className="text-sm text-[#5A4A44]">
+                    I agree to the{" "}
+                    <Link
+                      href="/terms-and-conditions"
+                      className="font-semibold text-leather hover:underline"
+                    >
+                      Terms & Conditions
+                    </Link>{" "}
+                    and{" "}
+                    <Link
+                      href="/privacy-policy"
+                      className="font-semibold text-leather hover:underline"
+                    >
+                      Privacy Policy
+                    </Link>
+                    . *
+                  </span>
+                </label>
+                {responseMessage && (
+                  <p className="mt-2 text-sm text-red-600">{responseMessage}</p>
+                )}
+              </div>
+
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !acceptTerms}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-leather px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-[#5A2F22] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? (
