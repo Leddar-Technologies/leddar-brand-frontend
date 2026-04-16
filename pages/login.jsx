@@ -1,7 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Button from "../components/ui/Button";
+import Spinner from "../components/ui/Spinner";
 import { getSession, login } from "../services/authService";
 
 export default function Login() {
@@ -35,9 +37,16 @@ export default function Login() {
   return (
     <div className="bg-atmosphere flex min-h-screen items-center justify-center p-6">
       <form onSubmit={handleSubmit} className="card w-full max-w-md p-8">
-        <h1 className="text-center text-3xl font-bold tracking-[0.2em] text-leather">
-          LEDDAR
-        </h1>
+        <div className="mb-6 flex justify-center">
+          <Image
+            src="/leddar-logo.svg"
+            alt="Leddar"
+            width={180}
+            height={56}
+            className="mx-auto mb-2 h-14 w-auto"
+            priority
+          />
+        </div>
         <div className="mt-6 space-y-4">
           <div>
             <label className="label">Email</label>
@@ -61,11 +70,21 @@ export default function Login() {
           </div>
           {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
           <Button className="w-full" type="submit" disabled={submitting}>
-            {submitting ? "Signing In..." : "Sign In"}
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size="sm" className="text-white" />
+                <span>Signing In...</span>
+              </span>
+            ) : (
+              "Sign In"
+            )}
           </Button>
-          <a href="#" className="block text-sm text-gold hover:underline">
+          <Link
+            href="/forgot-password"
+            className="block text-sm text-gold hover:underline"
+          >
             Forgot password?
-          </a>
+          </Link>
           <p className="text-sm text-[#5A4B44]">
             Need access?{" "}
             <Link

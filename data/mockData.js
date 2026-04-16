@@ -2,14 +2,14 @@ export const businessName = "Zara Couture";
 
 export const sidebarLinks = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Quote Request", href: "/quote-request" },
-  { label: "Quote Response", href: "/quote-response" },
+  { label: "New Order", href: "/new-order" },
+  { label: "Order Status", href: "/order-status" },
   { label: "Order Tracker", href: "/order-tracker" },
-  { label: "Sample Orders", href: "/sample-order" },
-  { label: "Invoices", href: "/invoices" },
+  { label: "Sample Requests", href: "/sample-requests" },
+  { label: "Payment & Invoices", href: "/invoices" },
   { label: "Order History", href: "/order-history" },
-  { label: "KYC", href: "/kyc" },
-  { label: "Profile", href: "/profile" },
+  { label: "Verification (KYC)", href: "/kyc" },
+  { label: "Profile & Settings", href: "/profile" },
 ];
 
 export const stats = [
@@ -168,19 +168,53 @@ export const orderHistory = [
 ];
 
 export const sampleInfoPoints = [
-  "You pay a flat sample fee upfront (e.g. ₦30,000 for 1 piece)",
+  "You pay a flat sample fee upfront",
   "This fee is deducted from your full production total when you approve",
   "You will receive a video of the completed sample for review - no physical delivery",
   "You may request a maximum of 2 corrections on the sample",
   "Once you approve the sample, you pay only the balance to proceed to production",
 ];
 
-export const sampleSteps = ["Reviewed", "Created", "Completed"];
+export const sampleSteps = [
+  {
+    key: "requested",
+    title: "Requested",
+    note: "Sample request has been submitted.",
+  },
+  {
+    key: "payment_confirmed",
+    title: "Payment Confirmed",
+    note: "Sample fee has been received.",
+  },
+  {
+    key: "in_review",
+    title: "In Review",
+    note: "Team is reviewing the sample brief.",
+  },
+  {
+    key: "sample_ready",
+    title: "Sample Ready",
+    note: "Sample is completed and ready for review.",
+  },
+  {
+    key: "revisions_needed",
+    title: "Revisions Needed",
+    note: "Optional corrections can be requested.",
+  },
+  {
+    key: "completed",
+    title: "Completed",
+    note: "Sample process is fully finished.",
+  },
+];
 
 export const productTypes = [
-  "Bags",
-  "Wallets",
+  "Men Footwear",
+  "Women Footwear",
+  "Men Bags",
+  "Women Bags",
+  "Wallets & Small Goods",
   "Belts",
-  "Shoes",
-  "Accessories",
+  "Custom Leather Products",
+  "Not sure yet"
 ];

@@ -1,25 +1,185 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CircleCheckBig, FileUp, FlaskConical, HandCoins, LoaderCircle } from "lucide-react";
+import {
+  CircleCheckBig,
+  CreditCard,
+  FileUp,
+  FlaskConical,
+  ShieldCheck,
+} from "lucide-react";
 import { useRouter } from "next/router";
 import { productTypes } from "../../data/mockData";
 import Button from "../ui/Button";
-import { getPricingRequestStatus, submitPricingRequest } from "../../services/prototypeService";
+import Modal from "../ui/Modal";
+import Spinner from "../ui/Spinner";
+import {
+  confirmPricingDepositPayment,
+  getPricingRequestStatus,
+  initializePricingDepositPayment,
+} from "../../services/prototypeService";
+import { getKycStatus } from "../../services/authService";
+import { formatVatPercent } from "../../utils/pricing";
+
+const PENDING_QUOTE_REQUEST_KEY = "leddar_pending_quote_request_id";
+const PENDING_QUOTE_INTENT_KEY = "leddar_pending_quote_intent";
 
 export default function QuoteForm() {
   const router = useRouter();
   const [quantity, setQuantity] = useState(100);
   const [productType, setProductType] = useState(productTypes[0]);
+  const [requiredTimeline, setRequiredTimeline] = useState("");
   const [notes, setNotes] = useState("");
   const [files, setFiles] = useState([]);
   const [dragging, setDragging] = useState(false);
-  const [pricingSubmitting, setPricingSubmitting] = useState(false);
   const [pricingError, setPricingError] = useState("");
   const [pricingPending, setPricingPending] = useState(false);
-  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [depositInitializing, setDepositInitializing] = useState(false);
+  const [depositConfirming, setDepositConfirming] = useState(false);
+  const [depositDetails, setDepositDetails] = useState(null);
   const [requestId, setRequestId] = useState("");
   const fileInputRef = useRef(null);
   const pollingBusyRef = useRef(false);
+  const canSubmitRequest =
+    Number(quantity) > 0 && files.length > 0 && Boolean(requiredTimeline);
+
+  function savePendingRequestId(id) {
+    if (typeof window === "undefined" || !id) {
+      return;
+    }
+    window.localStorage.setItem(PENDING_QUOTE_REQUEST_KEY, id);
+  }
+
+  function savePendingQuoteIntent(intent) {
+    if (typeof window === "undefined" || !intent) {
+      return;
+    }
+    window.sessionStorage.setItem(
+      PENDING_QUOTE_INTENT_KEY,
+      JSON.stringify(intent),
+    );
+  }
+
+  function readPendingQuoteIntent() {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    try {
+      const raw = window.sessionStorage.getItem(PENDING_QUOTE_INTENT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearPendingQuoteIntent() {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.sessionStorage.removeItem(PENDING_QUOTE_INTENT_KEY);
+  }
+
+  function clearPendingRequestId() {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.removeItem(PENDING_QUOTE_REQUEST_KEY);
+  }
+
+  function validateRequestInputs() {
+    if (!quantity || Number(quantity) <= 0) {
+      setPricingError(
+        "Please provide a valid quantity before requesting pricing.",
+      );
+      return false;
+    }
+
+    if (files.length === 0) {
+      setPricingError("Please upload at least one product spec file.");
+      return false;
+    }
+
+    if (!requiredTimeline) {
+      setPricingError("Please select a required timeline.");
+      return false;
+    }
+
+    return true;
+  }
+
+  function buildQuoteRequestPayload() {
+    return {
+      productType,
+      quantity: Number(quantity),
+      requiredTimeline,
+      notes,
+      attachments: files.map((file) => ({
+        name: file.name,
+        type: file.type,
+      })),
+    };
+  }
+
+  function restoreQuoteRequestIntent(intent) {
+    if (!intent) {
+      return;
+    }
+
+    if (intent.productType) {
+      setProductType(intent.productType);
+    }
+    if (intent.quantity) {
+      setQuantity(intent.quantity);
+    }
+    if (intent.requiredTimeline) {
+      setRequiredTimeline(intent.requiredTimeline);
+    }
+    if (typeof intent.notes === "string") {
+      setNotes(intent.notes);
+    }
+    if (Array.isArray(intent.attachments)) {
+      setFiles(intent.attachments);
+    }
+  }
+
+  async function startPricingDepositFlow(payload) {
+    setDepositInitializing(true);
+    try {
+      const details = await initializePricingDepositPayment(payload);
+      setDepositDetails(details);
+      setDepositModalOpen(true);
+    } catch (error) {
+      setPricingError(error.message || "Unable to initialize deposit payment.");
+    } finally {
+      setDepositInitializing(false);
+    }
+  }
+
+  async function submitPricingFromSampleCredit(payload) {
+    setDepositInitializing(true);
+    setPricingError("");
+
+    try {
+      const details = await initializePricingDepositPayment(payload);
+      const result = await confirmPricingDepositPayment({
+        draftId: details.draftId,
+        paymentReference: details.paymentReference,
+      });
+
+      setPricingPending(true);
+      setRequestId(result.id);
+      savePendingRequestId(result.id);
+      router.push(`/order-status?requestId=${result.id}`);
+    } catch (error) {
+      setPricingError(
+        error.message ||
+          "Unable to submit production pricing request from sample approval.",
+      );
+    } finally {
+      setDepositInitializing(false);
+    }
+  }
 
   function normalizeFiles(incomingFiles) {
     const validFiles = Array.from(incomingFiles).filter((file) => {
@@ -50,32 +210,103 @@ export default function QuoteForm() {
   async function handleRequestPricing() {
     setPricingError("");
 
-    if (!quantity || Number(quantity) <= 0) {
-      setPricingError("Please provide a valid quantity before requesting pricing.");
+    if (!validateRequestInputs()) {
       return;
     }
 
-    if (files.length === 0) {
-      setPricingError("Please upload at least one product spec file.");
+    if (getKycStatus() !== "verified") {
+      savePendingQuoteIntent(buildQuoteRequestPayload());
+      router.push(
+        `/kyc?returnUrl=${encodeURIComponent("/new-order?resume=pricing")}`,
+      );
       return;
     }
 
-    setPricingSubmitting(true);
+    await startPricingDepositFlow(buildQuoteRequestPayload());
+  }
+
+  function handleRequestSample() {
+    setPricingError("");
+
+    if (!validateRequestInputs()) {
+      return;
+    }
+
+    router.push("/sample-requests");
+  }
+
+  async function handleConfirmDepositPayment() {
+    if (!depositDetails?.draftId) {
+      setPricingError("Deposit payment details are missing. Please try again.");
+      return;
+    }
+
+    setDepositConfirming(true);
+    setPricingError("");
+
     try {
-      const result = await submitPricingRequest({
-        productType,
-        quantity: Number(quantity),
-        notes,
-        attachments: files.map((file) => ({ name: file.name, type: file.type }))
+      const result = await confirmPricingDepositPayment({
+        draftId: depositDetails.draftId,
+        paymentReference: depositDetails.paymentReference,
       });
       setPricingPending(true);
       setRequestId(result.id);
+      savePendingRequestId(result.id);
+      setDepositModalOpen(false);
+      router.push(`/order-status?requestId=${result.id}`);
     } catch (error) {
-      setPricingError(error.message || "Unable to submit pricing request.");
+      setPricingError(error.message || "Unable to confirm deposit payment.");
     } finally {
-      setPricingSubmitting(false);
+      setDepositConfirming(false);
     }
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const storedRequestId = window.localStorage.getItem(
+      PENDING_QUOTE_REQUEST_KEY,
+    );
+    if (storedRequestId) {
+      setRequestId(storedRequestId);
+      setPricingPending(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    const resume = router.query.resume;
+    if (resume !== "pricing") {
+      return;
+    }
+
+    if (getKycStatus() !== "verified") {
+      return;
+    }
+
+    const pendingIntent = readPendingQuoteIntent();
+    if (!pendingIntent) {
+      router.replace("/new-order", undefined, { shallow: true });
+      return;
+    }
+
+    restoreQuoteRequestIntent(pendingIntent);
+    clearPendingQuoteIntent();
+    const isFromSampleFlow = router.query.source === "sample";
+    router.replace("/new-order", undefined, { shallow: true });
+
+    if (isFromSampleFlow) {
+      void submitPricingFromSampleCredit(pendingIntent);
+      return;
+    }
+
+    void startPricingDepositFlow(pendingIntent);
+  }, [router.isReady, router.query.resume]);
 
   useEffect(() => {
     if (!pricingPending || !requestId) {
@@ -88,18 +319,17 @@ export default function QuoteForm() {
       }
 
       pollingBusyRef.current = true;
-      setCheckingStatus(true);
 
       try {
         const response = await getPricingRequestStatus(requestId);
         if (response.status === "pricing_ready") {
-          router.push(response.redirectPath || "/quote-response");
+          clearPendingRequestId();
+          router.push(response.redirectPath || "/order-status");
         }
       } catch (error) {
         setPricingError(error.message || "Unable to check pricing status.");
       } finally {
         pollingBusyRef.current = false;
-        setCheckingStatus(false);
       }
     };
 
@@ -111,9 +341,10 @@ export default function QuoteForm() {
   return (
     <div className="space-y-6">
       <div className="card p-6">
-        <h1 className="page-title">Quote Request</h1>
+        <h1 className="page-title">Production Request</h1>
         <p className="page-subtitle">
-          Upload your product spec and request a pricing route.
+          Tell us what you want to produce, we’ll match you with the right
+          artisan and provide pricing
         </p>
 
         <div className="mt-6 grid gap-5">
@@ -191,6 +422,23 @@ export default function QuoteForm() {
           </div>
 
           <div>
+            <label className="label">Required Timeline</label>
+            <select
+              className="input"
+              value={requiredTimeline}
+              onChange={(event) => setRequiredTimeline(event.target.value)}
+              required
+            >
+              <option value="">Select timeline</option>
+              <option value="1-2 weeks">1-2 weeks(urgent)</option>
+              <option value="3-4 weeks">3-4 weeks</option>
+              <option value="1-2 months">1-2 months</option>
+              <option value="1-2 months">2–3 months</option>
+              <option value="Flexible">Flexible</option>
+            </select>
+          </div>
+
+          <div>
             <label className="label">Notes</label>
             <textarea
               className="input min-h-28"
@@ -207,55 +455,136 @@ export default function QuoteForm() {
           <div className="flex items-start gap-3">
             <CircleCheckBig className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
             <div>
-              <p className="text-sm font-semibold text-ink">Pricing Request Submitted</p>
+              <p className="text-sm font-semibold text-ink">
+                Pricing Request Submitted
+              </p>
               <p className="mt-1 text-sm text-[#5A4A44]">
-                Your request has been sent to the admin panel and is now pending. Please wait while the admin inputs pricing details.
+                Pricing is awaiting admin review. Response time may vary based
+                on queue and availability.
               </p>
               <p className="mt-2 inline-flex items-center gap-2 text-xs text-[#7B6A62]">
-                <LoaderCircle className={`h-3.5 w-3.5 ${checkingStatus ? "animate-spin" : ""}`} />
+                <Spinner size="xs" className="text-gold" />
                 Checking for admin pricing updates automatically...
               </p>
               {requestId ? (
-                <p className="mt-2 text-xs text-[#7B6A62]">Request ID: {requestId}</p>
+                <p className="mt-2 text-xs text-[#7B6A62]">
+                  Request ID: {requestId}
+                </p>
               ) : null}
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <Link href="/dashboard" className="inline-flex">
+                  <Button variant="outline" className="w-full sm:w-auto">
+                    Continue to Dashboard
+                  </Button>
+                </Link>
+                <Link
+                  href={`/order-status?requestId=${requestId}`}
+                  className="inline-flex"
+                >
+                  <Button variant="accent" className="w-full sm:w-auto">
+                    Open Quote Response
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="card p-6">
+        <div className="card p-6 md:col-span-2">
           <FlaskConical className="h-7 w-7 text-gold" />
           <h3 className="mt-3 text-lg font-semibold text-ink">
-            Request Sample First
+            Start with a Sample
           </h3>
           <p className="mt-2 text-sm text-[#5A4A44]">
-            Get a physical sample produced first. Pay a flat fee, review via
-            video, then proceed.
-          </p>
-          <Link href="/sample-order" className="mt-4 inline-block">
-            <Button variant="accent">Request Sample</Button>
-          </Link>
-        </div>
-
-        <div className="card p-6">
-          <HandCoins className="h-7 w-7 text-leather" />
-          <h3 className="mt-3 text-lg font-semibold text-ink">
-            Request Pricing for Production
-          </h3>
-          <p className="mt-2 text-sm text-[#5A4A44]">
-            Skip samples and go straight to full production pricing.
+            Produce a sample first to confirm quality before full production
           </p>
           <div className="mt-4">
-            <Button onClick={handleRequestPricing} disabled={pricingSubmitting}>
-              {pricingSubmitting ? "Submitting Request..." : "Request Pricing"}
+            <Button
+              variant="accent"
+              onClick={handleRequestSample}
+              disabled={!canSubmitRequest}
+            >
+              Request Sample
             </Button>
-            {pricingError ? (
-              <p className="mt-2 text-sm text-[#B42318]">{pricingError}</p>
-            ) : null}
           </div>
         </div>
       </div>
+
+      {pricingError ? (
+        <p className="text-sm text-[#B42318]">{pricingError}</p>
+      ) : null}
+
+      <Modal
+        open={depositModalOpen}
+        title="Pricing Deposit Checkout"
+        onClose={() => setDepositModalOpen(false)}
+      >
+        <div className="mb-5 flex items-center gap-3 rounded-xl border border-[#E6D7CB] bg-[#FFF8EF] px-4 py-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gold text-espresso">
+            <CreditCard className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8B6A39]">
+              Pricing Deposit Required
+            </p>
+            <p className="truncate text-sm text-[#5A4A44]">
+              Pay ₦20,000 to submit your pricing request for admin review.
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 items-center rounded-full bg-[#2D6A4F14] px-2.5 py-1 text-[11px] font-semibold text-success">
+            <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+            Secure
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-xl border border-[#E6D7CB] bg-white p-4 text-sm text-[#4D3F39]">
+            <div className="flex items-center justify-between">
+              <span className="text-[#5A4A44]">Deposit Amount</span>
+              <span className="font-semibold text-ink">₦20,000</span>
+            </div>
+            <p className="mt-2 text-xs text-[#7B6A62]">
+              VAT ({formatVatPercent()}) applies to the full production quote
+              and is displayed during balance checkout.
+            </p>
+            {depositDetails?.paymentReference ? (
+              <p className="mt-2 text-xs text-[#7B6A62]">
+                Reference: {depositDetails.paymentReference}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <a
+              href={depositDetails?.authorizationUrl || "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex w-full sm:w-auto"
+            >
+              <Button variant="accent" className="w-full sm:w-auto">
+                Open Paystack
+              </Button>
+            </a>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={depositConfirming}
+              onClick={handleConfirmDepositPayment}
+            >
+              {depositConfirming ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner size="sm" className="text-gold" />
+                  <span>Confirming Deposit...</span>
+                </span>
+              ) : (
+                "I Have Paid Deposit"
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

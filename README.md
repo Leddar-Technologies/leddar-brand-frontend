@@ -160,3 +160,9 @@ When backend APIs are ready, migrate incrementally:
 
 - This prototype is intentionally frontend-only.
 - All current pages are statically renderable and compile through Next.js production build.
+
+## Detailed Integration Documentation
+
+For route flows, frontend state transitions, and backend API contract mapping, see:
+
+- docs/FRONTEND_FLOW_AND_API_INTEGRATION.md

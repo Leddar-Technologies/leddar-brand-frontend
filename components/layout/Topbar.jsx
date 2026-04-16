@@ -1,11 +1,19 @@
 import { useRouter } from "next/router";
-import { businessName } from "../../data/mockData";
+import { useEffect, useState } from "react";
 import Button from "../ui/Button";
 import NotificationBell from "../brand/NotificationBell";
-import { logout } from "../../services/authService";
+import { getSession, logout } from "../../services/authService";
 
 export default function Topbar() {
   const router = useRouter();
+  const [brandName, setBrandName] = useState("Business");
+
+  useEffect(() => {
+    const session = getSession();
+    if (session?.businessName) {
+      setBrandName(session.businessName);
+    }
+  }, []);
 
   function handleLogout() {
     logout();
@@ -16,10 +24,10 @@ export default function Topbar() {
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E8DED5] bg-white/70 p-4 backdrop-blur-sm">
       <div>
         <p className="text-xs uppercase tracking-[0.15em] text-[#8A7A72]">
-          Business
+          LEDDAR Brand Portal
         </p>
         <p className="text-sm font-semibold text-ink md:text-base">
-          {businessName}
+          Manage your production with confidence
         </p>
       </div>
       <div className="flex items-center gap-2 md:gap-3">

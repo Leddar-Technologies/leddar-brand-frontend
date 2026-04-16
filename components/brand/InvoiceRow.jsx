@@ -1,7 +1,9 @@
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
 
-export default function InvoiceRow({ invoice }) {
+export default function InvoiceRow({ invoice, onPayNow }) {
+  const canPayNow = invoice.status !== "Paid";
+
   return (
     <tr className="border-b border-[#EEE4DB]">
       <td className="px-3 py-3 text-sm">{invoice.orderId}</td>
@@ -20,9 +22,15 @@ export default function InvoiceRow({ invoice }) {
         >
           Download PDF
         </Button>
-        <Button variant="accent" className="px-3 py-2 text-xs">
-          Pay Now
-        </Button>
+        {canPayNow ? (
+          <Button
+            variant="accent"
+            className="mb-2 px-3 py-2 text-xs md:mb-0"
+            onClick={() => onPayNow?.(invoice)}
+          >
+            Pay Now
+          </Button>
+        ) : null}
       </td>
     </tr>
   );
