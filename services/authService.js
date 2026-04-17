@@ -1,23 +1,18 @@
 const SESSION_KEY = "leddar_session";
 const LAST_BRAND_KEY = "leddar_last_brand_name";
 const KYC_PROFILE_KEY = "leddar_kyc_profile";
-const LEGACY_BRAND_NAME = "Zara Couture";
 const DEFAULT_KYC_STATUS = "not_started";
 
-function wait(ms = 500) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+// --- Helper Functions ---
 
 function readKycProfile() {
-  if (typeof window === "undefined") {
+  if (typeof window === "undefined")
     return { status: DEFAULT_KYC_STATUS, rejectionReason: "" };
-  }
-
   try {
     const raw = window.localStorage.getItem(KYC_PROFILE_KEY);
-    if (!raw) {
-      return { status: DEFAULT_KYC_STATUS, rejectionReason: "" };
-    }
+    if (!raw) return { status: DEFAULT_KYC_STATUS, rejectionReason: "" };
     const parsed = JSON.parse(raw);
     return {
       status: parsed?.status || DEFAULT_KYC_STATUS,
@@ -30,34 +25,92 @@ function readKycProfile() {
 }
 
 function writeKycProfile(nextProfile) {
-  if (typeof window === "undefined") {
-    return;
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(KYC_PROFILE_KEY, JSON.stringify(nextProfile));
   }
-  window.localStorage.setItem(KYC_PROFILE_KEY, JSON.stringify(nextProfile));
 }
 
 function writeSession(nextSession) {
-  if (typeof window === "undefined") {
-    return;
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
   }
-  window.localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
 }
 
-function updateSessionKycFields(kycProfile) {
-  const session = getSession();
-  if (!session || typeof window === "undefined") {
-    return;
+// --- Exported Auth Functions ---
+
+export function getSession() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(SESSION_KEY);
+    // Strict check: handles actual null, or strings "null"/"undefined"
+    if (!raw || raw === "null" || raw === "undefined") return null;
+
+    const session = JSON.parse(raw);
+    if (!session || !session.token) return null;
+
+    // Sync KYC status from local profile into session if they differ
+    const kycProfile = readKycProfile();
+    if (session.kycStatus !== kycProfile.status) {
+      session.kycStatus = kycProfile.status;
+      session.kycRejectionReason = kycProfile.rejectionReason || "";
+      writeSession(session);
+    }
+
+    return session;
+  } catch (err) {
+    console.error("Session parse error:", err);
+    return null;
+  }
+}
+
+export async function login({ email, password }) {
+  const response = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    // This will catch the 403 "Awaiting admin approval" or 401 "Invalid credentials"
+    throw new Error(result.error || "Login failed");
   }
 
-  const nextSession = {
-    ...session,
+  // result.data should contain user and token from your backend controller
+  const { token, user } = result.data;
+  const kycProfile = readKycProfile();
+
+  const session = {
+    token,
+    email: user.email,
+    businessName: user.brand?.businessName || "Business",
+    role: user.role,
     kycStatus: kycProfile.status,
     kycRejectionReason: kycProfile.rejectionReason || "",
   };
-  writeSession(nextSession);
+
+  writeSession(session);
+
+  if (user.brand?.businessName) {
+    setLastBrandName(user.brand.businessName);
+  }
+
+  return session;
 }
 
-function setKycState(status, rejectionReason = "") {
+export function logout() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(SESSION_KEY);
+    // Optional: window.localStorage.removeItem(KYC_PROFILE_KEY);
+    window.location.href = "/login";
+  }
+}
+
+// --- KYC Management ---
+
+export function setKycState(status, rejectionReason = "") {
   const nextProfile = {
     status,
     rejectionReason,
@@ -65,174 +118,52 @@ function setKycState(status, rejectionReason = "") {
   };
 
   writeKycProfile(nextProfile);
-  updateSessionKycFields(nextProfile);
-  return nextProfile;
-}
 
-function clearKycState() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.removeItem(KYC_PROFILE_KEY);
-
+  // Sync into active session
   const session = getSession();
-  if (!session) {
-    return;
+  if (session) {
+    session.kycStatus = status;
+    session.kycRejectionReason = rejectionReason;
+    writeSession(session);
   }
-
-  const nextSession = {
-    ...session,
-    kycStatus: DEFAULT_KYC_STATUS,
-    kycRejectionReason: "",
-  };
-
-  writeSession(nextSession);
-}
-
-export function getSession() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(SESSION_KEY);
-    const session = raw ? JSON.parse(raw) : null;
-    if (!session) {
-      return null;
-    }
-
-    const kycProfile = readKycProfile();
-
-    if (session.businessName === LEGACY_BRAND_NAME) {
-      const migratedBrandName = getLastBrandName() || "Business";
-      const migratedSession = {
-        ...session,
-        businessName: migratedBrandName,
-        kycStatus: kycProfile.status,
-        kycRejectionReason: kycProfile.rejectionReason || "",
-      };
-      writeSession(migratedSession);
-      return migratedSession;
-    }
-
-    if (!session.kycStatus || session.kycStatus !== kycProfile.status) {
-      const syncedSession = {
-        ...session,
-        kycStatus: kycProfile.status,
-        kycRejectionReason: kycProfile.rejectionReason || "",
-      };
-      writeSession(syncedSession);
-      return syncedSession;
-    }
-
-    return session;
-  } catch {
-    return null;
-  }
-}
-
-export function getLastBrandName() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const stored = window.localStorage.getItem(LAST_BRAND_KEY) || "";
-  return stored === LEGACY_BRAND_NAME ? "" : stored;
-}
-
-export function setLastBrandName(brandName) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const cleaned = String(brandName || "").trim();
-  if (!cleaned) {
-    return;
-  }
-
-  window.localStorage.setItem(LAST_BRAND_KEY, cleaned);
-}
-
-export async function login({ email, password }) {
-  // Replace with POST /auth/login when backend is ready.
-  await wait();
-
-  if (!email || !password) {
-    throw new Error("Email and password are required.");
-  }
-
-  const lastBrandName = getLastBrandName();
-  const businessName = lastBrandName || "Business";
-  const kycProfile = readKycProfile();
-
-  const session = {
-    token: "mock-leddar-token",
-    email,
-    businessName,
-    kycStatus: kycProfile.status,
-    kycRejectionReason: kycProfile.rejectionReason || "",
-  };
-
-  writeSession(session);
-  setLastBrandName(businessName);
-  return session;
+  return nextProfile;
 }
 
 export function getKycProfile() {
   return readKycProfile();
 }
-
 export function getKycStatus() {
   return readKycProfile().status;
 }
-
 export function startKycVerification() {
   return setKycState("in_progress");
 }
-
 export function markKycPendingReview() {
   return setKycState("pending_review");
 }
-
 export function markKycVerified() {
   return setKycState("verified");
 }
-
 export function markKycRejected(reason) {
   return setKycState("rejected", String(reason || "").trim());
 }
-
 export function retryKycVerification() {
   return setKycState("not_started", "");
 }
-
-export async function verifyKycIdentity({ idType, idNumber }) {
-  // Replace with POST /kyc/verify (VerifyMe integration) when backend is ready.
-  await wait(900);
-
-  const normalizedType = String(idType || "").trim();
-  const normalizedNumber = String(idNumber || "").replace(/\s+/g, "");
-
-  if (!normalizedType || !normalizedNumber) {
-    throw new Error("ID type and ID number are required.");
-  }
-
-  if (normalizedNumber.length < 6) {
-    throw new Error("Please enter a valid ID number.");
-  }
-
-  // Mock successful provider verification.
-  return setKycState("verified", "");
-}
-
-export function logout() {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.removeItem(SESSION_KEY);
-}
-
 export function resetKycProfile() {
-  clearKycState();
+  if (typeof window !== "undefined")
+    window.localStorage.removeItem(KYC_PROFILE_KEY);
+}
+
+// --- Brand Meta ---
+
+export function getLastBrandName() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(LAST_BRAND_KEY) || "";
+}
+
+export function setLastBrandName(brandName) {
+  if (typeof window !== "undefined" && brandName) {
+    window.localStorage.setItem(LAST_BRAND_KEY, String(brandName).trim());
+  }
 }
