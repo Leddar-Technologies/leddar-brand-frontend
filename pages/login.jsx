@@ -102,7 +102,7 @@ export default function Login() {
                   text-sm
                   className="text-xs font-bold text-leather hover:text-gold transition"
                 >
-                  Forgot?
+                  Forgot password?
                 </Link>
               </div>
               <div className="relative">
