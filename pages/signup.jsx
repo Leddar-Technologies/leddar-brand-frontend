@@ -12,12 +12,12 @@ import {
 import { resetKycProfile, setLastBrandName } from "../services/authService";
 
 const PRODUCT_TYPES = [
-  "BAGS",
-  "WALLETS",
-  "FOOTWEAR",
-  "BELTS",
-  "APPAREL",
-  "OTHER",
+  {label: "Bags", value: "BAGS"},
+  {label: "Walles", value: "WALLETS"},
+  {label: "Footwear", value: "FOOTWEAR"},
+  {label: "Belts", value: "BELTS"},
+  {label: "Apparel", value: "APPAREL"},
+  {label: "Other", value: "OTHER"},
 ];
 
 export default function Signup() {
@@ -161,8 +161,8 @@ export default function Signup() {
                   >
                     <option value="">Select type</option>
                     {PRODUCT_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
+                      <option key={t.label} value={t.value}>
+                        {t.label}
                       </option>
                     ))}
                   </select>
