@@ -15,13 +15,6 @@ export default function Login() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [error, setError] = useState("");
 
-  // 1. Guard Clause: Redirect if already logged in
-  useEffect(() => {
-    if (getSession()) {
-      router.replace("/dashboard");
-    }
-  }, [router]);
-
   async function handleSubmit(event) {
     event.preventDefault();
     setStatus("loading");

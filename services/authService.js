@@ -1,3 +1,5 @@
+import axios from "axios";
+
 const SESSION_KEY = "leddar_session";
 const LAST_BRAND_KEY = "leddar_last_brand_name";
 const KYC_PROFILE_KEY = "leddar_kyc_profile";
@@ -43,14 +45,13 @@ export function getSession() {
 
   try {
     const raw = window.localStorage.getItem(SESSION_KEY);
-    // Strict check: handles actual null, or strings "null"/"undefined"
     if (!raw || raw === "null" || raw === "undefined") return null;
 
     const session = JSON.parse(raw);
     if (!session || !session.token) return null;
 
-    // Sync KYC status from local profile into session if they differ
     const kycProfile = readKycProfile();
+    // Sync session with local KYC profile if they differ
     if (session.kycStatus !== kycProfile.status) {
       session.kycStatus = kycProfile.status;
       session.kycRejectionReason = kycProfile.rejectionReason || "";
@@ -74,11 +75,9 @@ export async function login({ email, password }) {
   const result = await response.json();
 
   if (!response.ok) {
-    // This will catch the 403 "Awaiting admin approval" or 401 "Invalid credentials"
-    throw new Error(result.error || "Login failed");
+    throw new Error(result.message || result.error || "Login failed");
   }
 
-  // result.data should contain user and token from your backend controller
   const { token, user } = result.data;
   const kycProfile = readKycProfile();
 
@@ -103,57 +102,90 @@ export async function login({ email, password }) {
 export function logout() {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(SESSION_KEY);
-    // Optional: window.localStorage.removeItem(KYC_PROFILE_KEY);
     window.location.href = "/login";
   }
 }
 
 // --- KYC Management ---
 
-export function setKycState(status, rejectionReason = "") {
+/**
+ * Transitions the local KYC state to 'in_progress'
+ */
+export function startKycVerification() {
+  const profile = readKycProfile();
   const nextProfile = {
-    status,
-    rejectionReason,
+    ...profile,
+    status: "in_progress",
     updatedAt: new Date().toISOString(),
   };
-
   writeKycProfile(nextProfile);
-
-  // Sync into active session
-  const session = getSession();
-  if (session) {
-    session.kycStatus = status;
-    session.kycRejectionReason = rejectionReason;
-    writeSession(session);
-  }
   return nextProfile;
 }
 
-export function getKycProfile() {
-  return readKycProfile();
-}
-export function getKycStatus() {
-  return readKycProfile().status;
-}
-export function startKycVerification() {
-  return setKycState("in_progress");
-}
-export function markKycPendingReview() {
-  return setKycState("pending_review");
-}
-export function markKycVerified() {
-  return setKycState("verified");
-}
-export function markKycRejected(reason) {
-  return setKycState("rejected", String(reason || "").trim());
-}
+/**
+ * Resets the local KYC state to 'not_started' to allow a retry
+ */
 export function retryKycVerification() {
-  return setKycState("not_started", "");
+  const profile = {
+    status: "not_started",
+    rejectionReason: "",
+    updatedAt: new Date().toISOString(),
+  };
+  writeKycProfile(profile);
+  return profile;
 }
-export function resetKycProfile() {
-  if (typeof window !== "undefined")
-    window.localStorage.removeItem(KYC_PROFILE_KEY);
-}
+
+/**
+ * Sends ID details to the backend for verification
+ * @param {Object} data - { idType, idNumber, firstname, lastname, businessName }
+ */
+export const verifyKycIdentity = async (data) => {
+  try {
+    // Corrected: Extract token from the proper session key
+    const session = getSession();
+    const token = session?.token;
+
+    const response = await axios.post(`${API_URL}/brands/verify-kyc`, data, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const result = response.data.data;
+
+    const normalizedProfile = {
+      ...result,
+      status: result.status.toLowerCase(), // Converts 'VERIFIED' to 'verified'
+    };
+
+    // Update local storage so UI stays in sync
+    writeKycProfile(normalizedProfile);
+    return normalizedProfile;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "Verification failed");
+  }
+};
+
+/**
+ * Fetches existing KYC status from backend
+ */
+export const getKycStatus = async () => {
+  try {
+    const session = getSession();
+    const token = session?.token;
+
+    const response = await axios.get(`${API_URL}/brands/dashboard/summary`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const kycData = response.data.data.kyc || { status: "not_started" };
+    writeKycProfile(kycData);
+    return kycData;
+  } catch (error) {
+    // Fallback to locally stored profile if the network request fails
+    return readKycProfile();
+  }
+};
 
 // --- Brand Meta ---
 

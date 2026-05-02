@@ -28,7 +28,7 @@ export default function Signup() {
     (state) => state.accessRequest,
   );
 
-  const [localError, setLocalError] = useState("");
+   const [responseMessage, setResponseMessage] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -60,16 +60,16 @@ export default function Signup() {
   function updateField(event) {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (localError) setLocalError("");
+    if (responseMessage) setResponseMessage("");
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (!acceptTerms) {
-      setLocalError("Please accept the Terms & Conditions.");
-      return;
-    }
+     if (!acceptTerms) {
+       setResponseMessage("Please accept the Terms & Conditions to continue.");
+       return;
+     }
 
     // MAP DATA TO MATCH YOUR BACKEND 'registerBrand' SERVICE
     const payload = {
@@ -254,22 +254,36 @@ export default function Signup() {
               </div>
 
               <div className="rounded-lg border border-[#E8DED5] bg-[#FAFAF8] p-4">
-                <label className="flex items-start gap-3 cursor-pointer">
+                <label className="flex items-start gap-3">
                   <input
                     type="checkbox"
                     checked={acceptTerms}
                     onChange={(e) => setAcceptTerms(e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-leather"
+                    className="mt-1 h-5 w-5 cursor-pointer rounded border-[#D7CBC1] accent-leather"
                   />
-                  <span className="text-[10px] text-[#5A4A44]">
-                    I agree to the Terms and Privacy Policy.
+                  <span className="text-sm text-[#5A4A44]">
+                    I agree to the{" "}
+                    <Link
+                      href="/terms-and-conditions"
+                      className="font-semibold text-leather hover:underline"
+                    >
+                      Terms & Conditions
+                    </Link>{" "}
+                    and{" "}
+                    <Link
+                      href="/privacy-policy"
+                      className="font-semibold text-leather hover:underline"
+                    >
+                      Privacy Policy
+                    </Link>
+                    . *
                   </span>
                 </label>
               </div>
 
-              {(error || localError) && (
+              {(error || responseMessage) && (
                 <div className="bg-red-50 border border-red-200 text-red-600 text-xs p-3 rounded-lg text-center font-medium">
-                  {error || localError}
+                  {error || responseMessage}
                 </div>
               )}
 
@@ -290,6 +304,15 @@ export default function Signup() {
                 )}
               </button>
             </form>
+            <div className="mt-5 rounded-xl border border-[#E8DED5] bg-[#FAF7F4] p-4 text-center sm:p-5">
+              <p className="text-sm text-[#5A4A44]">Already using LEDDAR?</p>
+              <Link
+                href="/login"
+                className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-[#D7CBC1] bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-gold hover:text-gold sm:w-auto sm:min-w-[180px]"
+              >
+                Go to Login
+              </Link>
+            </div>
           </div>
         </div>
       </div>
