@@ -18,6 +18,7 @@ import {
   initializePricingDepositPayment,
 } from "../../services/prototypeService";
 import { getKycStatus } from "../../services/authService";
+import { formatVatPercent } from "../../utils/pricing";
 
 const PENDING_QUOTE_REQUEST_KEY = "leddar_pending_quote_request_id";
 const PENDING_QUOTE_INTENT_KEY = "leddar_pending_quote_intent";
@@ -544,6 +545,10 @@ export default function QuoteForm() {
               <span className="text-[#5A4A44]">Deposit Amount</span>
               <span className="font-semibold text-ink">₦20,000</span>
             </div>
+            <p className="mt-2 text-xs text-[#7B6A62]">
+              VAT ({formatVatPercent()}) applies to the full production quote
+              and is displayed during balance checkout.
+            </p>
             {depositDetails?.paymentReference ? (
               <p className="mt-2 text-xs text-[#7B6A62]">
                 Reference: {depositDetails.paymentReference}

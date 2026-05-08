@@ -14,6 +14,7 @@ import {
   rejectQuoteRequest,
 } from "../services/prototypeService";
 import { getKycStatus } from "../services/authService";
+import { formatNaira, formatVatPercent } from "../utils/pricing";
 
 const PENDING_QUOTE_REQUEST_KEY = "leddar_pending_quote_request_id";
 
@@ -424,21 +425,47 @@ export default function OrderStatus() {
         <div className="space-y-4">
           <div className="rounded-xl border border-[#E6D7CB] bg-white p-4 text-sm text-[#4D3F39]">
             <div className="flex items-center justify-between">
+              <span className="text-[#5A4A44]">Subtotal</span>
+              <span className="font-semibold text-ink">
+                {formatNaira(
+                  balancePaymentDetails?.subtotalAmount ||
+                    quoteResponse?.subtotalAmount ||
+                    70000,
+                )}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-[#5A4A44]">VAT ({formatVatPercent()})</span>
+              <span className="font-semibold text-ink">
+                {formatNaira(
+                  balancePaymentDetails?.vatAmount || quoteResponse?.vatAmount,
+                )}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
               <span className="text-[#5A4A44]">Total Quote</span>
               <span className="font-semibold text-ink">
-                {quoteResponse.total || "₦70,000"}
+                {formatNaira(
+                  balancePaymentDetails?.totalAmount ||
+                    quoteResponse?.totalAmount ||
+                    75250,
+                )}
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between">
               <span className="text-[#5A4A44]">Deposit Applied</span>
-              <span className="font-semibold text-ink">₦20,000</span>
+              <span className="font-semibold text-ink">
+                {formatNaira(
+                  balancePaymentDetails?.depositApplied ||
+                    quoteResponse?.depositAmount ||
+                    20000,
+                )}
+              </span>
             </div>
             <div className="mt-2 border-t border-[#EAE1D8] pt-2 flex items-center justify-between text-base font-bold text-ink">
               <span>Balance Due</span>
               <span>
-                {balancePaymentDetails?.amountDue
-                  ? `₦${balancePaymentDetails.amountDue.toLocaleString()}`
-                  : "₦50,000"}
+                {formatNaira(balancePaymentDetails?.amountDue || 55250)}
               </span>
             </div>
           </div>

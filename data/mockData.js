@@ -168,7 +168,7 @@ export const orderHistory = [
 ];
 
 export const sampleInfoPoints = [
-  "You pay a flat sample fee upfront (e.g. ₦30,000 for 1 piece)",
+  "You pay a flat sample fee upfront",
   "This fee is deducted from your full production total when you approve",
   "You will receive a video of the completed sample for review - no physical delivery",
   "You may request a maximum of 2 corrections on the sample",

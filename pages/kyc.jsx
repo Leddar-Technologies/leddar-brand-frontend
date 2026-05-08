@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { CircleCheckBig } from "lucide-react";
 import PageWrapper from "../components/layout/PageWrapper";
@@ -7,7 +7,7 @@ import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import Spinner from "../components/ui/Spinner";
 import {
-  getKycProfile,
+  getKycStatus,
   retryKycVerification,
   startKycVerification,
   verifyKycIdentity,
@@ -15,16 +15,41 @@ import {
 
 export default function KycPage() {
   const router = useRouter();
-  const [kycProfile, setKycProfile] = useState(getKycProfile());
-  const [busy, setBusy] = useState(false);
+
+  // Initialize with a default object to prevent 'undefined' errors on first render
+  const [kycProfile, setKycProfile] = useState({
+    status: "not_started",
+    rejectionReason: "",
+    firstname: "",
+    lastname: "",
+    businessName: "",
+  });
+
+  const [busy, setBusy] = useState(true);
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   const [idType, setIdType] = useState("NIN");
   const [idNumber, setIdNumber] = useState("");
   const [verifyError, setVerifyError] = useState("");
+
   const returnUrl =
     typeof router.query.returnUrl === "string" && router.query.returnUrl
       ? router.query.returnUrl
       : "/dashboard";
+
+  // Fetch the actual status from the backend on component mount
+  useEffect(() => {
+    async function loadStatus() {
+      try {
+        const profile = await getKycStatus();
+        setKycProfile(profile);
+      } catch (error) {
+        console.error("Failed to load KYC status:", error);
+      } finally {
+        setBusy(false);
+      }
+    }
+    loadStatus();
+  }, []);
 
   const statusCopy = useMemo(() => {
     switch (kycProfile.status) {
@@ -65,14 +90,11 @@ export default function KycPage() {
 
   const showVerificationAction =
     kycProfile.status === "not_started" || kycProfile.status === "in_progress";
+
   const verificationActionLabel =
     kycProfile.status === "in_progress"
       ? "Continue Verification"
       : "Start KYC Verification";
-
-  function updateProfile(nextProfile) {
-    setKycProfile(nextProfile);
-  }
 
   function handleOpenVerifyModal() {
     setVerifyError("");
@@ -81,30 +103,38 @@ export default function KycPage() {
 
   async function handleSubmitVerification(event) {
     event.preventDefault();
-
     setVerifyError("");
     setBusy(true);
+
     try {
+      // Update status to 'in_progress' if starting fresh
       if (
         kycProfile.status === "not_started" ||
         kycProfile.status === "rejected"
       ) {
-        updateProfile(startKycVerification());
+        const initialProfile = await startKycVerification();
+        setKycProfile(initialProfile);
       }
 
+      // Call the identity verification service with ID details
       const verifiedProfile = await verifyKycIdentity({
         idType,
         idNumber,
+        firstname: kycProfile.firstname || "",
+        lastname: kycProfile.lastname || "",
+        businessName: kycProfile.businessName || "",
       });
 
-      updateProfile(verifiedProfile);
+      setKycProfile(verifiedProfile);
       setVerifyModalOpen(false);
       setIdNumber("");
-      router.push(returnUrl);
-    } catch (verificationError) {
-      setVerifyError(
-        verificationError.message || "Unable to verify identity right now.",
-      );
+
+      // Automatically redirect if the provider returns 'verified' immediately
+      if (verifiedProfile.status === "verified") {
+        router.push(returnUrl);
+      }
+    } catch (err) {
+      setVerifyError(err.message || "Unable to verify identity right now.");
     } finally {
       setBusy(false);
     }
@@ -113,7 +143,10 @@ export default function KycPage() {
   async function handleRetry() {
     setBusy(true);
     try {
-      updateProfile(retryKycVerification());
+      const nextProfile = await retryKycVerification();
+      setKycProfile(nextProfile);
+    } catch (err) {
+      console.error("Retry failed:", err);
     } finally {
       setBusy(false);
     }
@@ -121,6 +154,7 @@ export default function KycPage() {
 
   return (
     <PageWrapper>
+      {/* Status Banner */}
       <div className="rounded-xl border border-[#E6D7CB] bg-[#FFF6E8] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -143,7 +177,7 @@ export default function KycPage() {
             </p>
           </div>
 
-          {showVerificationAction ? (
+          {showVerificationAction && (
             <div className="rounded-xl border border-[#E8DED5] bg-white p-4">
               <p className="text-sm text-[#5A4A44]">
                 Start verification only when you are ready to proceed with quote
@@ -158,17 +192,17 @@ export default function KycPage() {
                 {verificationActionLabel}
               </Button>
             </div>
-          ) : null}
+          )}
 
-          {kycProfile.status === "pending_review" ? (
+          {kycProfile.status === "pending_review" && (
             <div className="rounded-xl border border-[#E8DED5] bg-white p-4">
               <p className="text-sm text-[#5A4A44]">
                 Your KYC is pending manual review.
               </p>
             </div>
-          ) : null}
+          )}
 
-          {kycProfile.status === "verified" ? (
+          {kycProfile.status === "verified" && (
             <div className="rounded-xl border border-[#2D6A4F1A] bg-[#2D6A4F10] p-4">
               <p className="inline-flex items-center gap-2 text-sm font-semibold text-success">
                 <CircleCheckBig className="h-4 w-4" />
@@ -180,9 +214,9 @@ export default function KycPage() {
                 </Button>
               </div>
             </div>
-          ) : null}
+          )}
 
-          {kycProfile.status === "rejected" ? (
+          {kycProfile.status === "rejected" && (
             <div className="rounded-xl border border-[#B423181A] bg-[#B4231812] p-4">
               <p className="text-sm font-semibold text-[#B42318]">
                 Verification was rejected.
@@ -194,7 +228,7 @@ export default function KycPage() {
                 </Button>
               </div>
             </div>
-          ) : null}
+          )}
         </div>
 
         <p className="mt-6 text-xs text-[#6A5B54]">
@@ -203,6 +237,7 @@ export default function KycPage() {
         </p>
       </div>
 
+      {/* KYC Entry Modal */}
       <Modal
         open={verifyModalOpen}
         title="Verify Identity"
@@ -239,15 +274,15 @@ export default function KycPage() {
             />
           </div>
 
-          {verifyError ? (
+          {verifyError && (
             <p className="text-sm text-[#B42318]">{verifyError}</p>
-          ) : null}
+          )}
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button type="submit" variant="accent" disabled={busy}>
               {busy ? (
                 <span className="inline-flex items-center gap-2">
-                  <Spinner size="sm" className="text-espresso" />
+                  <Spinner size="sm" />
                   <span>Verifying...</span>
                 </span>
               ) : (
