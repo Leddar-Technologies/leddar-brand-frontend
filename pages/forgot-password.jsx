@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, MailCheck, ShieldCheck } from "lucide-react";
+import axios from "axios"; // 1. Import axios
 import Spinner from "../components/ui/Spinner";
 
-function wait(ms = 900) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+// Get base URL from env or fallback
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -20,13 +21,23 @@ export default function ForgotPassword() {
     setError("");
 
     try {
-      await wait();
+      // 2. Call your actual backend endpoint
+      const response = await axios.post(`${API_URL}/auth/forgot-password`, {
+        email,
+      });
+
+      // 3. Set success message from backend
       setMessage(
-        "If this email is registered, a reset link has been sent. Please check your inbox.",
+        response.data.message ||
+          "If this email is registered, a reset link has been sent.",
       );
       setEmail("");
-    } catch {
-      setError("Unable to process your request right now. Please try again.");
+    } catch (err) {
+      // 4. Handle errors from backend
+      const errorMessage =
+        err.response?.data?.error ||
+        "Unable to process your request right now. Please try again.";
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -117,7 +128,10 @@ export default function ForgotPassword() {
               >
                 {submitting ? (
                   <>
-                    <Spinner size="sm" className="text-white" />
+                    <Spinner
+                      size="sm"
+                      className="text-white border-white border-t-transparent"
+                    />
                     <span>Sending reset link...</span>
                   </>
                 ) : (
@@ -126,17 +140,17 @@ export default function ForgotPassword() {
               </button>
             </form>
 
-            {message ? (
+            {message && (
               <p className="mt-4 rounded-lg border border-[#2D6A4F1A] bg-[#2D6A4F1A] px-4 py-3 text-sm text-success">
                 {message}
               </p>
-            ) : null}
+            )}
 
-            {error ? (
+            {error && (
               <p className="mt-4 rounded-lg border border-[#B423181A] bg-[#B4231812] px-4 py-3 text-sm text-danger">
                 {error}
               </p>
-            ) : null}
+            )}
 
             <p className="mt-6 text-sm text-[#6A5B54]">
               Remembered your password?{" "}
