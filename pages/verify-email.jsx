@@ -2,22 +2,29 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import {
+  CheckCircle2,
+  XCircle,
+  Mail,
+  ArrowRight,
+  Loader2,
+  Terminal,
+} from "lucide-react";
 import Link from "next/link";
-import { CheckCircle2, XCircle, Mail, ArrowRight, Loader2 } from "lucide-react";
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
 
+  // Secret toggle: append ?debug=true to your URL in production to see the panel
+  const isDebugMode = searchParams.get("debug") === "true";
+
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
   const [debugInfo, setDebugInfo] = useState(null);
 
   useEffect(() => {
-    // 1. PREVENT "OOPS" FLASH:
-    // If the router hasn't finished hydrating the searchParams,
-    // we stay in the "loading" state and wait for the next render.
     if (!token) {
       console.log("[VerifyEmail] Waiting for token...");
       return;
@@ -27,10 +34,20 @@ function VerifyEmailContent() {
       const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email?token=${token}`;
 
       try {
-        const res = await fetch(url, { method: "GET" });
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
         const data = await res.json();
 
-        setDebugInfo({ url, status: res.status, data });
+        // Capture data for the debug panel
+        setDebugInfo({
+          url,
+          status: res.status,
+          ok: res.ok,
+          data,
+        });
 
         if (!res.ok) {
           throw new Error(data.message || "Verification failed");
@@ -47,6 +64,13 @@ function VerifyEmailContent() {
         console.error("[VerifyEmail] Caught error:", err);
         setStatus("error");
         setMessage(err.message);
+
+        // Ensure debug info captures the failure even if res.json() failed
+        setDebugInfo((prev) => ({
+          ...prev,
+          error: err.message,
+          timestamp: new Date().toLocaleTimeString(),
+        }));
       }
     };
 
@@ -57,6 +81,7 @@ function VerifyEmailContent() {
     <div className="min-h-screen bg-atmosphere flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full">
         <div className="bg-white rounded-3xl shadow-2xl border border-[#E8DED5] p-8 md:p-10 text-center transition-all duration-500 animate-in fade-in zoom-in-95">
+          {/* Status Icon Section */}
           <div className="mb-8 flex justify-center">
             {status === "loading" && (
               <div className="relative">
@@ -81,6 +106,7 @@ function VerifyEmailContent() {
             )}
           </div>
 
+          {/* Text Content */}
           <div className="space-y-4">
             <h1 className="text-3xl font-bold text-ink tracking-tight">
               {status === "loading" && "Verifying Email"}
@@ -96,36 +122,48 @@ function VerifyEmailContent() {
             </p>
           </div>
 
-          {process.env.NODE_ENV === "development" && (
-            <div className="mt-6 text-left bg-gray-900 text-green-400 rounded-xl p-4 text-xs font-mono overflow-auto max-h-48 space-y-1">
-              <p className="text-gray-400 font-bold uppercase tracking-widest mb-2">
-                Debug Info
-              </p>
-              <p>
-                <span className="text-yellow-400">token:</span>{" "}
-                {token ?? "null"}
-              </p>
-              <p>
-                <span className="text-yellow-400">api_url:</span>{" "}
-                {process.env.NEXT_PUBLIC_API_URL ?? "undefined"}
-              </p>
-              <p>
-                <span className="text-yellow-400">status:</span> {status}
-              </p>
-              {debugInfo && (
-                <>
-                  <p>
-                    <span className="text-yellow-400">http_status:</span>{" "}
-                    {debugInfo.status}
-                  </p>
-                  <pre className="text-green-300 whitespace-pre-wrap break-all">
-                    {JSON.stringify(debugInfo.data, null, 2)}
-                  </pre>
-                </>
-              )}
+          {/* 
+              DEBUG PANEL 
+              Visible if: 
+              1. Local development environment
+              2. URL has ?debug=true 
+          */}
+          {(process.env.NODE_ENV === "development" || isDebugMode) && (
+            <div className="mt-8 text-left bg-gray-900 text-green-400 rounded-xl p-5 shadow-inner ring-1 ring-white/10">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-700">
+                <Terminal size={14} className="text-yellow-500" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  System Diagnostics {isDebugMode && "(Live Override)"}
+                </span>
+              </div>
+
+              <div className="space-y-2 font-mono text-[11px]">
+                <p>
+                  <span className="text-yellow-500/80">ENDPOINT:</span>{" "}
+                  {process.env.NEXT_PUBLIC_API_URL || "NOT_SET"}
+                </p>
+                <p>
+                  <span className="text-yellow-500/80">TOKEN:</span>{" "}
+                  {token ? `${token.substring(0, 10)}...` : "MISSING"}
+                </p>
+                <p>
+                  <span className="text-yellow-500/80">HTTP_STATUS:</span>{" "}
+                  {debugInfo?.status || "N/A"}
+                </p>
+
+                {debugInfo?.data && (
+                  <div className="mt-2 pt-2 border-t border-gray-800">
+                    <p className="text-blue-400 mb-1">RAW_RESPONSE:</p>
+                    <pre className="bg-black/40 p-2 rounded overflow-x-auto whitespace-pre">
+                      {JSON.stringify(debugInfo.data, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
+          {/* Action Buttons */}
           <div className="mt-10">
             {status === "success" ? (
               <Link
