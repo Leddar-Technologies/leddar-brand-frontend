@@ -10,35 +10,41 @@ function VerifyEmailContent() {
   const router = useRouter();
   const token = searchParams.get("token");
 
-  const [status, setStatus] = useState("loading"); // loading | success | error
+  const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
+  const [debugInfo, setDebugInfo] = useState(null);
 
   useEffect(() => {
+    // 1. PREVENT "OOPS" FLASH:
+    // If the router hasn't finished hydrating the searchParams,
+    // we stay in the "loading" state and wait for the next render.
     if (!token) {
-      setStatus("error");
-      setMessage("The verification link is missing or invalid.");
+      console.log("[VerifyEmail] Waiting for token...");
       return;
     }
 
     const verify = async () => {
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email?token=${token}`,
-          { method: "GET" },
-        );
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email?token=${token}`;
 
+      try {
+        const res = await fetch(url, { method: "GET" });
         const data = await res.json();
 
-        if (!res.ok) throw new Error(data.message || "Verification failed");
+        setDebugInfo({ url, status: res.status, data });
+
+        if (!res.ok) {
+          throw new Error(data.message || "Verification failed");
+        }
 
         setStatus("success");
         setMessage(
           data.message || "Your email has been successfully verified.",
         );
 
-        // Optional: Auto redirect to login after 5 seconds
+        // Auto-redirect after success
         setTimeout(() => router.push("/login"), 5000);
       } catch (err) {
+        console.error("[VerifyEmail] Caught error:", err);
         setStatus("error");
         setMessage(err.message);
       }
@@ -50,9 +56,7 @@ function VerifyEmailContent() {
   return (
     <div className="min-h-screen bg-atmosphere flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full">
-        {/* Card Container */}
         <div className="bg-white rounded-3xl shadow-2xl border border-[#E8DED5] p-8 md:p-10 text-center transition-all duration-500 animate-in fade-in zoom-in-95">
-          {/* Icon Header */}
           <div className="mb-8 flex justify-center">
             {status === "loading" && (
               <div className="relative">
@@ -65,13 +69,11 @@ function VerifyEmailContent() {
                 />
               </div>
             )}
-
             {status === "success" && (
               <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-600 scale-110 transition-transform duration-500">
                 <CheckCircle2 className="w-12 h-12" />
               </div>
             )}
-
             {status === "error" && (
               <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500">
                 <XCircle className="w-12 h-12" />
@@ -79,14 +81,12 @@ function VerifyEmailContent() {
             )}
           </div>
 
-          {/* Content */}
           <div className="space-y-4">
             <h1 className="text-3xl font-bold text-ink tracking-tight">
               {status === "loading" && "Verifying Email"}
               {status === "success" && "Verified!"}
               {status === "error" && "Oops!"}
             </h1>
-
             <p className="text-[#6A5B54] text-lg leading-relaxed">
               {status === "loading" &&
                 "Give us a moment while we validate your credentials..."}
@@ -96,7 +96,36 @@ function VerifyEmailContent() {
             </p>
           </div>
 
-          {/* Action Button */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="mt-6 text-left bg-gray-900 text-green-400 rounded-xl p-4 text-xs font-mono overflow-auto max-h-48 space-y-1">
+              <p className="text-gray-400 font-bold uppercase tracking-widest mb-2">
+                Debug Info
+              </p>
+              <p>
+                <span className="text-yellow-400">token:</span>{" "}
+                {token ?? "null"}
+              </p>
+              <p>
+                <span className="text-yellow-400">api_url:</span>{" "}
+                {process.env.NEXT_PUBLIC_API_URL ?? "undefined"}
+              </p>
+              <p>
+                <span className="text-yellow-400">status:</span> {status}
+              </p>
+              {debugInfo && (
+                <>
+                  <p>
+                    <span className="text-yellow-400">http_status:</span>{" "}
+                    {debugInfo.status}
+                  </p>
+                  <pre className="text-green-300 whitespace-pre-wrap break-all">
+                    {JSON.stringify(debugInfo.data, null, 2)}
+                  </pre>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="mt-10">
             {status === "success" ? (
               <Link
@@ -123,7 +152,6 @@ function VerifyEmailContent() {
           </div>
         </div>
 
-        {/* Footer branding */}
         <div className="mt-8 text-center">
           <p className="text-sm text-[#A39289] font-medium">
             &copy; {new Date().getFullYear()} Leddar Administration Panel
@@ -134,7 +162,6 @@ function VerifyEmailContent() {
   );
 }
 
-// Wrap in Suspense for Next.js 13/14/15 searchParams requirements
 export default function VerifyEmailPage() {
   return (
     <Suspense
