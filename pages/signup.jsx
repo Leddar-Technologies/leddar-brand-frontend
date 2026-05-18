@@ -3,13 +3,25 @@
 // import Image from "next/image";
 // import { useRouter } from "next/router";
 // import { useDispatch, useSelector } from "react-redux";
-// import { Users, Award, ArrowRight, Zap, Eye, EyeOff, Check } from "lucide-react";
+// import {
+//   Users,
+//   Award,
+//   ArrowRight,
+//   Zap,
+//   Eye,
+//   EyeOff,
+//   Check,
+//   Terminal,
+// } from "lucide-react";
 // import Spinner from "../components/ui/Spinner";
 // import {
 //   submitAccessRequest,
 //   resetState,
 // } from "../store/slices/accessRequestSlice";
-// import { retryKycVerification, setLastBrandName } from "../services/authService";
+// import {
+//   retryKycVerification,
+//   setLastBrandName,
+// } from "../services/authService";
 
 // const PRODUCT_TYPES = [
 //   { label: "Bags", value: "BAGS" },
@@ -25,16 +37,17 @@
 //   const dispatch = useDispatch();
 
 //   const { loading, error, success } = useSelector(
-//     (state) => state.accessRequest
+//     (state) => state.accessRequest,
 //   );
 
 //   const [responseMessage, setResponseMessage] = useState("");
 //   const [acceptTerms, setAcceptTerms] = useState(false);
 //   const [showPassword, setShowPassword] = useState(false);
+//   const [showDebug, setShowDebug] = useState(false); // Debug toggle
 
 //   const [formData, setFormData] = useState({
 //     businessName: "",
-//     productType: [], // Initialized as an array for multi-select
+//     productType: [],
 //     estimatedQuantity: "",
 //     contactName: "",
 //     email: "",
@@ -42,18 +55,32 @@
 //     password: "",
 //   });
 
+//   // 1. Log Redux State Changes
+//   useEffect(() => {
+//     console.log("[Signup Debug] Redux State:", { loading, error, success });
+//     if (error) console.error("[Signup Debug] Error detected:", error);
+//   }, [loading, error, success]);
+
 //   useEffect(() => {
 //     if (success) {
-//       retryKycVerification();
-//       setLastBrandName(formData.businessName);
-//       router.push({
-//         pathname: "/signup-confirmation",
-//         query: {
-//           contactName: formData.contactName,
-//           businessName: formData.businessName,
-//         },
-//       });
-//       dispatch(resetState());
+//       console.log(
+//         "[Signup Debug] Success triggered. Finalizing registration...",
+//       );
+//       try {
+//         retryKycVerification();
+//         setLastBrandName(formData.businessName);
+
+//         router.push({
+//           pathname: "/signup-confirmation",
+//           query: {
+//             contactName: formData.contactName,
+//             businessName: formData.businessName,
+//           },
+//         });
+//         dispatch(resetState());
+//       } catch (e) {
+//         console.error("[Signup Debug] Error in success callback:", e);
+//       }
 //     }
 //   }, [success, dispatch, router, formData]);
 
@@ -63,7 +90,6 @@
 //     if (responseMessage) setResponseMessage("");
 //   }
 
-//   // Handle Multi-select Toggle
 //   const toggleProductType = (typeValue) => {
 //     setFormData((prev) => {
 //       const isAlreadySelected = prev.productType.includes(typeValue);
@@ -79,6 +105,8 @@
 //   async function handleSubmit(event) {
 //     event.preventDefault();
 
+//     console.log("[Signup Debug] Form submitted with payload prep...");
+
 //     if (formData.productType.length === 0) {
 //       setResponseMessage("Please select at least one product type.");
 //       return;
@@ -93,18 +121,43 @@
 //       email: formData.email,
 //       password: formData.password,
 //       businessName: formData.businessName,
-//       productType: formData.productType, // Sending array to backend
+//       productType: formData.productType,
 //       contactName: formData.contactName,
 //       whatsapp: formData.phone,
 //       brandEstimatedQty: formData.estimatedQuantity,
 //       acceptedTerms: acceptTerms,
 //     };
 
+//     // 2. Log API Payload before dispatching
+//     console.log(
+//       "[Signup Debug] Dispatching submitAccessRequest with:",
+//       payload,
+//     );
 //     dispatch(submitAccessRequest(payload));
 //   }
 
 //   return (
 //     <div className="min-h-screen bg-atmosphere">
+//       {/* 3. FLOATING DEBUG TOGGLE (Visible in all environments for your testing) */}
+//       <button
+//         onClick={() => setShowDebug(!showDebug)}
+//         className="fixed bottom-4 left-4 z-[9999] bg-black text-white p-2 rounded-full shadow-lg opacity-50 hover:opacity-100 flex items-center gap-2 text-xs"
+//       >
+//         <Terminal size={14} /> {showDebug ? "Hide Debug" : "Show Debug"}
+//       </button>
+
+//       {showDebug && (
+//         <div className="fixed bottom-16 left-4 z-[9999] bg-gray-900 text-green-400 p-4 rounded-xl border border-gray-700 shadow-2xl text-[10px] font-mono max-w-xs overflow-auto max-h-60">
+//           <p className="text-yellow-400 font-bold mb-1">PROD DEBUG PANEL</p>
+//           <p>API_URL: {process.env.NEXT_PUBLIC_API_URL || "NOT SET"}</p>
+//           <p>Loading: {String(loading)}</p>
+//           <p>Success: {String(success)}</p>
+//           <p>Error: {JSON.stringify(error) || "None"}</p>
+//           <p className="mt-2 text-yellow-400">Payload Preview:</p>
+//           <pre>{JSON.stringify({ ...formData, password: "***" }, null, 2)}</pre>
+//         </div>
+//       )}
+
 //       <header className="border-b border-[#E8DED5] bg-white/80 backdrop-blur-sm sticky top-0 z-50">
 //         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
 //           <Image
@@ -164,7 +217,6 @@
 //                 />
 //               </div>
 
-//               {/* PRODUCT TYPE MULTI-SELECT GRID */}
 //               <div>
 //                 <label className="mb-2 block text-xs font-semibold text-[#3C2F2A]">
 //                   Product Types (Select all that apply) *
@@ -306,7 +358,10 @@
 
 //               {(error || responseMessage) && (
 //                 <div className="bg-red-50 border border-red-200 text-red-600 text-xs p-3 rounded-lg text-center font-medium">
-//                   {error || responseMessage}
+//                   {/* Log error in UI for visibility */}
+//                   {typeof error === "string"
+//                     ? error
+//                     : responseMessage || "Submission failed. Check console."}
 //                 </div>
 //               )}
 
@@ -356,7 +411,6 @@ import {
   Eye,
   EyeOff,
   Check,
-  Terminal,
 } from "lucide-react";
 import Spinner from "../components/ui/Spinner";
 import {
@@ -388,7 +442,6 @@ export default function Signup() {
   const [responseMessage, setResponseMessage] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showDebug, setShowDebug] = useState(false); // Debug toggle
 
   const [formData, setFormData] = useState({
     businessName: "",
@@ -400,17 +453,8 @@ export default function Signup() {
     password: "",
   });
 
-  // 1. Log Redux State Changes
-  useEffect(() => {
-    console.log("[Signup Debug] Redux State:", { loading, error, success });
-    if (error) console.error("[Signup Debug] Error detected:", error);
-  }, [loading, error, success]);
-
   useEffect(() => {
     if (success) {
-      console.log(
-        "[Signup Debug] Success triggered. Finalizing registration...",
-      );
       try {
         retryKycVerification();
         setLastBrandName(formData.businessName);
@@ -424,7 +468,7 @@ export default function Signup() {
         });
         dispatch(resetState());
       } catch (e) {
-        console.error("[Signup Debug] Error in success callback:", e);
+        console.error("Error in success callback:", e);
       }
     }
   }, [success, dispatch, router, formData]);
@@ -441,7 +485,6 @@ export default function Signup() {
       const updatedTypes = isAlreadySelected
         ? prev.productType.filter((t) => t !== typeValue)
         : [...prev.productType, typeValue];
-
       return { ...prev, productType: updatedTypes };
     });
     if (responseMessage) setResponseMessage("");
@@ -449,8 +492,6 @@ export default function Signup() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-
-    console.log("[Signup Debug] Form submitted with payload prep...");
 
     if (formData.productType.length === 0) {
       setResponseMessage("Please select at least one product type.");
@@ -473,36 +514,11 @@ export default function Signup() {
       acceptedTerms: acceptTerms,
     };
 
-    // 2. Log API Payload before dispatching
-    console.log(
-      "[Signup Debug] Dispatching submitAccessRequest with:",
-      payload,
-    );
     dispatch(submitAccessRequest(payload));
   }
 
   return (
     <div className="min-h-screen bg-atmosphere">
-      {/* 3. FLOATING DEBUG TOGGLE (Visible in all environments for your testing) */}
-      <button
-        onClick={() => setShowDebug(!showDebug)}
-        className="fixed bottom-4 left-4 z-[9999] bg-black text-white p-2 rounded-full shadow-lg opacity-50 hover:opacity-100 flex items-center gap-2 text-xs"
-      >
-        <Terminal size={14} /> {showDebug ? "Hide Debug" : "Show Debug"}
-      </button>
-
-      {showDebug && (
-        <div className="fixed bottom-16 left-4 z-[9999] bg-gray-900 text-green-400 p-4 rounded-xl border border-gray-700 shadow-2xl text-[10px] font-mono max-w-xs overflow-auto max-h-60">
-          <p className="text-yellow-400 font-bold mb-1">PROD DEBUG PANEL</p>
-          <p>API_URL: {process.env.NEXT_PUBLIC_API_URL || "NOT SET"}</p>
-          <p>Loading: {String(loading)}</p>
-          <p>Success: {String(success)}</p>
-          <p>Error: {JSON.stringify(error) || "None"}</p>
-          <p className="mt-2 text-yellow-400">Payload Preview:</p>
-          <pre>{JSON.stringify({ ...formData, password: "***" }, null, 2)}</pre>
-        </div>
-      )}
-
       <header className="border-b border-[#E8DED5] bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <Image
@@ -703,10 +719,9 @@ export default function Signup() {
 
               {(error || responseMessage) && (
                 <div className="bg-red-50 border border-red-200 text-red-600 text-xs p-3 rounded-lg text-center font-medium">
-                  {/* Log error in UI for visibility */}
                   {typeof error === "string"
                     ? error
-                    : responseMessage || "Submission failed. Check console."}
+                    : responseMessage || "Submission failed. Please try again."}
                 </div>
               )}
 
@@ -727,6 +742,7 @@ export default function Signup() {
                 )}
               </button>
             </form>
+
             <div className="mt-5 rounded-xl border border-[#E8DED5] bg-[#FAF7F4] p-4 text-center sm:p-5">
               <p className="text-sm text-[#5A4A44]">Already using LEDDAR?</p>
               <Link

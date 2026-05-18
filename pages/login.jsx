@@ -23,7 +23,7 @@ export default function Login() {
     try {
       // 2. Perform Backend Authentication
       // This service should save the token to localStorage/Cookies
-      const response = await login({ email, password });
+      const response = await login({ email, password, role: "BRAND" });
 
       if (response) {
         setStatus("success");

@@ -5,7 +5,7 @@ const LAST_BRAND_KEY = "leddar_last_brand_name";
 const KYC_PROFILE_KEY = "leddar_kyc_profile";
 const DEFAULT_KYC_STATUS = "not_started";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 // --- Helper Functions ---
 
@@ -65,11 +65,11 @@ export function getSession() {
   }
 }
 
-export async function login({ email, password }) {
+export async function login({ email, password, role }) {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, role }),
   });
 
   const result = await response.json();
@@ -139,26 +139,64 @@ export function retryKycVerification() {
  * Sends ID details to the backend for verification
  * @param {Object} data - { idType, idNumber, firstname, lastname, businessName }
  */
-export const verifyKycIdentity = async (data) => {
+export const verifyKycIdentity = async (formPayload) => {
   try {
-    // Corrected: Extract token from the proper session key
     const session = getSession();
     const token = session?.token;
 
-    const response = await axios.post(`${API_URL}/brands/verify-kyc`, data, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const { idType, idNumber, firstName, lastName, dob, companyType } =
+      formPayload;
+
+    // Map UI labels → backend enum values
+    const idTypeMap = {
+      NIN: "NIN",
+      CAC: "CAC",
+      "Voters Card": "VOTERS_CARD",
+    };
+
+    const companyTypeMap = {
+      "Limited Company": "limited_company",
+      "Business Name": "business",
+      "Incorporated Trustee": "incorprated_trustee", // VerifyMe's spelling
+    };
+
+    // DOB format: NIN needs "DD-MM-YYYY", Voter's Card needs "YYYY-MM-DD"
+    // HTML date input always gives "YYYY-MM-DD"
+    const formatDob = (raw, type) => {
+      if (!raw) return undefined;
+      if (type === "NIN") {
+        const [y, m, d] = raw.split("-");
+        return `${d}-${m}-${y}`; // flip to DD-MM-YYYY
+      }
+      return raw; // Voter's Card stays as-is
+    };
+
+    const mappedType = idTypeMap[idType] || idType;
+
+    const payload = {
+      idType: mappedType,
+      idNumber,
+      ...(mappedType !== "CAC" && {
+        firstname: firstName,
+        lastname: lastName,
+        dob: formatDob(dob, mappedType),
+      }),
+      ...(mappedType === "CAC" && {
+        companyType: companyTypeMap[companyType] || "business",
+      }),
+    };
+
+    const response = await axios.post(`${API_URL}/brands/verify-kyc`, payload, {
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     const result = response.data.data;
 
     const normalizedProfile = {
       ...result,
-      status: result.status.toLowerCase(), // Converts 'VERIFIED' to 'verified'
+      status: result.status.toLowerCase(), // "VERIFIED" → "verified"
     };
 
-    // Update local storage so UI stays in sync
     writeKycProfile(normalizedProfile);
     return normalizedProfile;
   } catch (error) {
