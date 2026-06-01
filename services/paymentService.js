@@ -86,7 +86,7 @@
 import axios from "axios";
 import { getSession } from "./authService";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
 function authHeaders() {
   const session = getSession();
@@ -97,16 +97,21 @@ function authHeaders() {
 // ---------------------------------------------------------------------------
 // Sample flat fee — ₦30,000
 // POST /api/v1/payments/initialize-sample
+//
+// No quoteId needed up front. The backend creates the Quote + Order after
+// the Paystack webhook confirms payment. We send the quote intent (product
+// details) as metadata so the webhook has everything it needs.
 // ---------------------------------------------------------------------------
 
 /**
- * @param {{ email: string, quoteId: string }} payload
+ * @param {{ email: string, quoteIntent: object }} payload
+ *   quoteIntent = { productType, quantity, requiredTimeline, notes, attachments }
  * @returns {{ reference, authorizationUrl, amount, vatAmount, totalAmount }}
  */
-export async function initializeSamplePayment({ email, quoteId }) {
+export async function initializeSamplePayment({ email, quoteIntent }) {
   const response = await axios.post(
     `${API_URL}/payments/initialize-sample`,
-    { email, quoteId },
+    { email, quoteIntent },
     { headers: authHeaders() },
   );
   return response.data.data;

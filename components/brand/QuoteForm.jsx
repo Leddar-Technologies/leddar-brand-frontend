@@ -225,15 +225,26 @@ export default function QuoteForm() {
     await startPricingDepositFlow(buildQuoteRequestPayload());
   }
 
-  function handleRequestSample() {
-    setPricingError("");
+ async function handleRequestSample() {
+   setPricingError("");
 
-    if (!validateRequestInputs()) {
-      return;
-    }
+   if (!validateRequestInputs()) {
+     return;
+   }
 
-    router.push("/sample-requests");
-  }
+   const kycProfile = await getKycStatus();
+   if (kycProfile?.status !== "verified") {
+     savePendingQuoteIntent(buildQuoteRequestPayload());
+     router.push(
+       `/kyc?returnUrl=${encodeURIComponent("/new-order?resume=sample")}`,
+     );
+     return;
+   }
+
+   // Save the quote intent so SampleInfoPage can read it on arrival
+   savePendingQuoteIntent(buildQuoteRequestPayload());
+   router.push("/sample-requests?source=new-order");
+ }
 
   async function handleConfirmDepositPayment() {
     if (!depositDetails?.draftId) {
