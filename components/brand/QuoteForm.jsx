@@ -185,7 +185,8 @@ export default function QuoteForm() {
     const validFiles = Array.from(incomingFiles).filter((file) => {
       const isPdf = file.type === "application/pdf";
       const isImage = file.type.startsWith("image/");
-      return isPdf || isImage;
+      const isVideo = file.type.startsWith("video/"); 
+      return isPdf || isImage || isVideo;
     });
     setFiles((current) => [...current, ...validFiles]);
   }
@@ -362,7 +363,7 @@ export default function QuoteForm() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf"
+            accept="image/*,application/pdf,video/*"
             multiple
             className="hidden"
             onChange={handleFileChange}
