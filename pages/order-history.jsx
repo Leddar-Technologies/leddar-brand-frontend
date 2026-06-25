@@ -76,7 +76,7 @@
 // }
 
 // pages/order-history.jsx — Brand app
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Package, FlaskConical } from "lucide-react";
 import PageWrapper from "../components/layout/PageWrapper";
@@ -92,6 +92,7 @@ const STATUS_COLORS = {
   SAMPLE_APPROVED:    "bg-[#EAF3DE] text-[#27500A]",
   BALANCE_PAID:       "bg-[#EAF3DE] text-[#27500A]",
   IN_PRODUCTION:      "bg-[#FFF3E0] text-[#B45309]",
+  PENDING_DELIVERY:   "bg-[#F3E8FF] text-[#6B21A8]",
   SHIPPED:            "bg-[#E6F1FB] text-[#0C447C]",
   DELIVERED:          "bg-[#EAF3DE] text-[#27500A]",
 };
@@ -104,9 +105,25 @@ const STATUS_LABELS = {
   SAMPLE_APPROVED:    "Sample Approved",
   BALANCE_PAID:       "Balance Paid",
   IN_PRODUCTION:      "In Production",
+  PENDING_DELIVERY:   "Ready for Dispatch",
   SHIPPED:            "Shipped",
   DELIVERED:          "Delivered",
 };
+
+// Job-level statuses the brand cares about
+const JOB_STATUS_OPTIONS = [
+  { value: "",                    label: "All Statuses" },
+  { value: "ASSIGNED",            label: "Assigned" },
+  { value: "IN_PROGRESS",         label: "In Progress" },
+  { value: "VIDEO_UPLOADED",      label: "Video Uploaded" },
+  { value: "CORRECTION_REQUESTED",label: "Correction Requested" },
+  { value: "SAMPLE_APPROVED",     label: "Sample Approved" },
+  { value: "COMPLETED",           label: "Completed" },
+  { value: "PENDING_DELIVERY",    label: "Ready for Dispatch" },
+  { value: "DISPATCHED",          label: "Dispatched" },
+  { value: "DELIVERED",           label: "Delivered" },
+  { value: "DECLINED",            label: "Declined" },
+];
 
 function OrderCard({ order }) {
   const productType = order.quote?.productType?.[0] || "Leather Product";
@@ -145,10 +162,10 @@ function OrderCard({ order }) {
 }
 
 export default function OrderHistoryPage() {
-  const [orders, setOrders] = useState({ sample: [], production: [] });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [tab, setTab] = useState("all"); // all | sample | production
+  const [orders, setOrders]       = useState({ sample: [], production: [] });
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
+  const [activeStatus, setActiveStatus] = useState(""); // "" = All
 
   useEffect(() => {
     getBrandOrders()
@@ -157,37 +174,63 @@ export default function OrderHistoryPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const sampleOrders     = orders.sample     || [];
-  const productionOrders = orders.production || [];
-  const allOrders        = [...sampleOrders, ...productionOrders].sort(
-    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-  );
+  const allOrders = useMemo(() =>
+    [...(orders.sample || []), ...(orders.production || [])].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+    ),
+  [orders]);
 
-  const displayed = tab === "sample" ? sampleOrders : tab === "production" ? productionOrders : allOrders;
+  // Collect only the job statuses that actually appear in the data
+  const presentStatuses = useMemo(() => {
+    const seen = new Set();
+    allOrders.forEach((o) => (o.jobs || []).forEach((j) => seen.add(j.status)));
+    // Return in the preferred display order
+    return JOB_STATUS_OPTIONS.filter((o) => o.value && seen.has(o.value));
+  }, [allOrders]);
+
+  const displayed = useMemo(() => {
+    if (!activeStatus) return allOrders;
+    return allOrders.filter((o) =>
+      (o.jobs || []).some((j) => j.status === activeStatus)
+    );
+  }, [allOrders, activeStatus]);
 
   return (
     <PageWrapper>
       <h1 className="page-title">Order History</h1>
       <p className="page-subtitle mt-1">All your past and active orders.</p>
 
-      {/* Tabs */}
-      <div className="mt-5 flex gap-2">
-        {["all", "sample", "production"].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold capitalize transition-colors ${
-              tab === t
-                ? "bg-gold text-espresso"
-                : "bg-white border border-[#E6D7CB] text-[#7B6A62] hover:bg-[#FFF8EF]"
-            }`}
-          >
-            {t}
-            <span className="ml-1.5 opacity-60">
-              ({t === "all" ? allOrders.length : t === "sample" ? sampleOrders.length : productionOrders.length})
-            </span>
-          </button>
-        ))}
+      {/* Status filter pills */}
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button
+          onClick={() => setActiveStatus("")}
+          className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
+            activeStatus === ""
+              ? "bg-gold text-espresso"
+              : "bg-white border border-[#E6D7CB] text-[#7B6A62] hover:bg-[#FFF8EF]"
+          }`}
+        >
+          All <span className="ml-1 opacity-60">({allOrders.length})</span>
+        </button>
+
+        {presentStatuses.map((opt) => {
+          const count = allOrders.filter((o) =>
+            (o.jobs || []).some((j) => j.status === opt.value)
+          ).length;
+          return (
+            <button
+              key={opt.value}
+              onClick={() => setActiveStatus(opt.value)}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
+                activeStatus === opt.value
+                  ? "bg-gold text-espresso"
+                  : "bg-white border border-[#E6D7CB] text-[#7B6A62] hover:bg-[#FFF8EF]"
+              }`}
+            >
+              {opt.label} <span className="ml-1 opacity-60">({count})</span>
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -198,7 +241,7 @@ export default function OrderHistoryPage() {
         <p className="mt-6 text-sm text-[#B42318]">{error}</p>
       ) : displayed.length === 0 ? (
         <div className="mt-8 rounded-xl border border-[#E8DED5] bg-white p-8 text-center text-sm text-[#7B6A62]">
-          No {tab === "all" ? "" : tab} orders yet.
+          No orders match the selected status.
         </div>
       ) : (
         <div className="mt-4 space-y-3">

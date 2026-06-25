@@ -85,13 +85,13 @@ function authHeaders() {
 // Sample flat fee — ₦30,000
 // POST /api/v1/payments/initialize-sample
 // ---------------------------------------------------------------------------
-export async function initializeSamplePayment({ email, quoteIntent }) {
+export async function initializeSamplePayment({ email, quoteIntent, fileIds = [] }) {
   if (!quoteIntent?.productType || !quoteIntent?.quantity) {
     throw new Error("Quote details are missing. Please go back to New Order and try again.");
   }
   const response = await axios.post(
     `${API_URL}/payments/initialize-sample`,
-    { email, quoteIntent },
+    { email, quoteIntent, fileIds },
     { headers: authHeaders() },
   );
   return response.data.data;
@@ -101,11 +101,11 @@ export async function initializeSamplePayment({ email, quoteIntent }) {
 // Production balance payment
 // POST /api/v1/payments/initialize-production
 // ---------------------------------------------------------------------------
-export async function initializeProductionPayment({ email, orderId }) {
-  if (!orderId) throw new Error("Order ID is missing.");
+export async function initializeProductionPayment({ email, orderId, quoteId }) {
+  if (!orderId && !quoteId) throw new Error("Either orderId or quoteId is required.");
   const response = await axios.post(
     `${API_URL}/payments/initialize-production`,
-    { email, orderId },
+    { email, ...(orderId ? { orderId } : { quoteId }) },
     { headers: authHeaders() },
   );
   return response.data.data;
@@ -190,4 +190,51 @@ export async function getBrandPayments() {
     { headers: authHeaders() },
   );
   return response.data.data;
+}
+
+// ---------------------------------------------------------------------------
+// Job pipeline — brand actions
+// ---------------------------------------------------------------------------
+
+/** Brand approves the sample → triggers production job creation */
+export async function approveSample(jobId) {
+  const response = await axios.patch(
+    `${API_URL}/brands/jobs/${jobId}/approve-sample`,
+    {},
+    { headers: authHeaders() },
+  );
+  return response.data;
+}
+
+/**
+ * Brand requests a correction
+ * @param {string} jobId
+ * @param {string} note  — feedback for the artisan
+ */
+export async function requestCorrection(jobId, note) {
+  const response = await axios.patch(
+    `${API_URL}/brands/jobs/${jobId}/request-correction`,
+    { note },
+    { headers: authHeaders() },
+  );
+  return response.data;
+}
+
+/** Brand confirms receipt of dispatched production order */
+export async function confirmReceipt(jobId) {
+  const response = await axios.patch(
+    `${API_URL}/brands/jobs/${jobId}/confirm-receipt`,
+    {},
+    { headers: authHeaders() },
+  );
+  return response.data;
+}
+
+/** Get a 15-min presigned URL for a private S3 file (video, etc.) */
+export async function presignBrandFile(url) {
+  const response = await axios.get(
+    `${API_URL}/brands/files/presign`,
+    { params: { url }, headers: authHeaders() },
+  );
+  return response.data.signedUrl;
 }

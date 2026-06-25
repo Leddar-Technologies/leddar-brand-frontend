@@ -99,12 +99,17 @@ import { formatNaira } from "../utils/pricing";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 // Fetch PDF with auth token then trigger browser download
-async function downloadInvoicePdf(orderId, filename) {
+async function downloadInvoicePdf(orderId, fallbackFilename, isLegacyProduction = false) {
   const session = getSession();
-  const res = await fetch(`${API_URL}/brands/orders/${orderId}/invoice`, {
+  const endpoint = `${API_URL}/brands/orders/${orderId}/invoice${isLegacyProduction ? "?type=PRODUCTION" : ""}`;
+  const res = await fetch(endpoint, {
     headers: { Authorization: `Bearer ${session?.token}` },
   });
   if (!res.ok) throw new Error("Failed to download invoice");
+  // Use the server-provided filename from Content-Disposition (single source of truth)
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match ? match[1] : fallbackFilename;
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -129,9 +134,27 @@ export default function InvoicesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const allOrders = [...(orders.sample || []), ...(orders.production || [])].sort(
-    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-  );
+  // Build real orders list. For legacy PATH A: a SAMPLE order whose escrowBalance > 0
+  // means production was paid but no separate PRODUCTION order was created. Synthesise
+  // a virtual production row from that same order so the brand sees it.
+  const legacyProductionRows = (orders.sample || [])
+    .filter((o) => (o.escrowBalance || 0) > 0)
+    .map((o) => ({
+      ...o,
+      _isLegacyProduction: true,
+      type: "PRODUCTION",
+      totalAmount: o.escrowBalance,
+      // Use the production payment records (MATERIAL / SERVICE stages) for isPaid check
+      payments: (o.payments || []).filter((p) =>
+        ["MATERIAL", "SERVICE", "FULL_PAYMENT"].includes(p.stage),
+      ),
+    }));
+
+  const allOrders = [
+    ...(orders.sample || []),
+    ...(orders.production || []),
+    ...legacyProductionRows,
+  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   return (
     <PageWrapper>
@@ -151,16 +174,22 @@ export default function InvoicesPage() {
       ) : (
         <div className="mt-6 space-y-3">
           {allOrders.map((order) => {
-            // Payment is confirmed if any payment record is RECEIVED or HELD_IN_ESCROW
             const PAID_STATUSES = ["RECEIVED", "HELD_IN_ESCROW", "RELEASED"];
-            const isPaid = order.payments?.some((p) => PAID_STATUSES.includes(p.status));
+            const PAID_ORDER_STATUSES = ["IN_PRODUCTION", "PENDING_DELIVERY", "SHIPPED", "DELIVERED", "SAMPLE_COMPLETED"];
+            // Legacy production rows: paid when escrowBalance > 0 (funds already held)
+            const isPaid = order._isLegacyProduction
+              ? true
+              : order.payments?.some((p) => PAID_STATUSES.includes(p.status))
+                // Fallback: if the order itself reached a post-payment status, treat as paid.
+                // Covers cases where payment record wasn't updated (e.g. webhook ran before verify).
+                || PAID_ORDER_STATUSES.includes(order.status);
             const productTypes = order.quote?.productType || [];
             const productType = productTypes.join(", ") || "Leather Product";
             const invoiceUrl = `${API_URL}/brands/orders/${order.id}/invoice`;
 
             return (
               <div
-                key={order.id}
+                key={order._isLegacyProduction ? `${order.id}-production` : order.id}
                 className="flex items-center justify-between gap-4 rounded-xl border border-[#E6D7CB] bg-white p-4"
               >
                 <div className="min-w-0 flex-1">
@@ -192,8 +221,9 @@ export default function InvoicesPage() {
                       onClick={async () => {
                         setDownloading(order.id);
                         try {
-                          const ref = `INV-${order.id.slice(0, 8).toUpperCase()}`;
-                          await downloadInvoicePdf(order.id, `${ref}.pdf`);
+                          const suffix = order._isLegacyProduction ? "-PROD" : "";
+                          const ref = order.invoice?.ref || `INV-${order.id.slice(0, 8).toUpperCase()}`;
+                          await downloadInvoicePdf(order.id, `Leddar - ${ref}${suffix}.pdf`, !!order._isLegacyProduction);
                         } catch {
                           alert("Could not download invoice. Please try again.");
                         } finally {

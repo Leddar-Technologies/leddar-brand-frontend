@@ -34,9 +34,11 @@ export default function PageWrapper({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-atmosphere lg:flex lg:items-stretch">
-      <div className="hidden lg:flex lg:shrink-0">
-        <Sidebar />
+    <div className="min-h-screen bg-atmosphere lg:flex">
+      <div className="hidden lg:block lg:w-64 xl:w-72 lg:shrink-0">
+        <div className="fixed top-0 left-0 h-screen w-64 xl:w-72 overflow-y-auto">
+          <Sidebar />
+        </div>
       </div>
 
       {mobileSidebarOpen ? (
@@ -45,7 +47,7 @@ export default function PageWrapper({ children }) {
         </div>
       ) : null}
 
-      <main className="flex-1 p-4 md:p-5 lg:p-6 xl:p-8">
+      <main className="flex-1 min-w-0 p-4 md:p-5 lg:p-6 xl:p-8">
         <div className="mb-4 flex items-center justify-between rounded-xl border border-[#E8DED5] bg-white/75 p-3 lg:hidden">
           <p className="text-sm font-bold tracking-[0.18em] text-leather">
             LEDDAR

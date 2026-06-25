@@ -49,9 +49,10 @@ export default function PaymentVerifyPage() {
 
         setTimeout(() => router.push(redirectTo), 2500);
       } catch (err) {
-        const errMsg =
-          err.response?.data?.message ||
-          "We could not verify your payment. Please contact support.";
+        const data = err.response?.data;
+        const errMsg = data?.detail
+          ? `${data.message} — ${data.detail}`
+          : data?.message || "We could not verify your payment. Please contact support.";
         setMessage(errMsg);
         setStatus("error");
       }
