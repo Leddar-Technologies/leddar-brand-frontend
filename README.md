@@ -1,168 +1,209 @@
-# Leddar Brand Frontend Prototype
+# Leddar — Brand Portal
 
-This repository contains a complete frontend-only prototype for Leddar, a private B2B leather manufacturing platform for fashion brands.
+The brand-facing web application for the Leddar premium leather production platform. Brands request quotes, track sample production, approve sample videos, and pay for production.
 
-No backend services, API integrations, or database calls are used. All UI state and content are driven from local mock data.
+**URL:** http://localhost:3004
+
+---
 
 ## Tech Stack
 
-- Next.js (Pages Router, JavaScript only)
-- React
-- Tailwind CSS
-- Lucide React (icons)
+| | |
+|---|---|
+| Framework | Next.js 14 (Pages Router) |
+| State Management | Redux Toolkit |
+| Styling | Tailwind CSS |
+| Icons | Lucide React |
+| HTTP Client | Axios |
+| Payments | Paystack JS (inline checkout) |
 
-## Run The Project
+---
 
-The app is configured to run on port 3004 by default.
+## Getting Started
 
-1. Install dependencies:
+```bash
+npm install
+cp .env.local.example .env.local   # add your API URL
+npm run dev
+```
 
-   npm install
+---
 
-2. Start development server:
+## Scripts
 
-   npm run dev
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server on port 3004 |
+| `npm run build` | Build for production |
+| `npm start` | Start production server on port 3004 |
+| `npm run lint` | Run ESLint |
 
-3. Open:
+---
 
-   http://localhost:3004
+## Environment Variables
 
-For production mode:
+Create `.env.local`:
 
-1. Build:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+```
 
-   npm run build
+---
 
-2. Start production server:
+## Project Structure
 
-   npm run start
+```
+pages/
+├── index.jsx                  # Login page
+├── signup.jsx                 # Brand registration
+├── dashboard.jsx              # Overview: active orders, quick stats
+├── kyc.jsx                    # Identity verification (NIN + CAC via QoreID)
+├── new-order.jsx              # Place a quote request
+├── order-status.jsx           # Pricing, sample video review, pay button
+├── order-tracker.jsx          # Live order status timeline
+├── order-history/
+│   └── [id].jsx               # Completed order details + approved video
+├── sample-requests.jsx        # All sample orders
+├── invoices.jsx               # Invoice list and downloads
+└── profile.jsx                # Business profile
 
-## Architecture Overview
+components/
+├── brand/
+│   ├── QuoteForm.jsx          # Quote request multi-step form
+│   ├── SampleInfoPage.jsx     # Sample order detail view
+│   └── OrderTrackerCard.jsx   # Status timeline card
+├── layout/
+│   ├── PageWrapper.jsx        # Dashboard shell (sidebar + topbar)
+│   ├── Sidebar.jsx            # Navigation
+│   └── Topbar.jsx             # Brand name + notifications
+└── ui/
+    ├── Button.jsx
+    ├── Badge.jsx
+    ├── Card.jsx
+    ├── Modal.jsx
+    └── StatCard.jsx
 
-The project follows a component-first architecture with clear separation between layout shell, reusable UI primitives, and domain-specific brand components.
+services/
+├── apiClient.js               # Axios instance with JWT interceptors
+└── brandService.js            # Quote, order, KYC, payment API calls
 
-### 1) Pages Layer
+store/
+└── slices/
+    ├── authSlice.js
+    ├── ordersSlice.js
+    └── quotesSlice.js
+```
 
-All route entry points live in pages. Each file maps directly to a URL.
+---
 
-- Marketing and auth pages:
-  - pages/index.jsx
-  - pages/login.jsx
-  - pages/signup.jsx
-  - pages/signup-confirmation.jsx
-- Dashboard module pages:
-  - pages/dashboard.jsx
-  - pages/quote-request.jsx
-  - pages/quote-response.jsx
-  - pages/order-tracker.jsx
-  - pages/sample-order.jsx
-  - pages/invoices.jsx
-  - pages/order-history.jsx
-  - pages/kyc.jsx
-  - pages/profile.jsx
+## User Flow
 
-### 2) Layout Layer
+```
+Sign Up / Login
+     ↓
+Complete KYC (NIN + CAC verification — both required before ordering)
+     ↓
+Place Order → fill quote form + upload reference files
+     ↓
+Admin sets sample price → Brand receives notification
+     ↓
+My Quotes → review pricing → Pay Sample Fee (Paystack)
+     ↓
+Order Status → admin forwards sample video → Brand watches video
+     ↓
+Brand Approves  ──────────────────────────────────────────────┐
+     or                                                       ↓
+Brand Requests Changes → artisan re-uploads         Production pricing received
+     ↓                                                        ↓
+                                              Pay Production Balance (Paystack)
+                                                              ↓
+                                                   Track My Order → Delivered
+```
 
-Shared dashboard structure is implemented in components/layout.
+---
 
-- components/layout/PageWrapper.jsx: wraps all dashboard pages with Sidebar + Topbar and content container.
-- components/layout/Sidebar.jsx: central route navigation and active state styling.
-- components/layout/Topbar.jsx: business context and notification area.
+## KYC Requirements
 
-Design rule enforced: all dashboard pages render through PageWrapper so navigation and spacing stay consistent.
+Before a brand can place any order, both verifications must pass:
 
-### 3) Reusable UI Primitives
+| Step | What | Provider |
+|---|---|---|
+| NIN | National ID Number | QoreID `/nin-premium/{nin}` |
+| CAC / RC Number | Business registration | QoreID `/cac/{rcNumber}` |
 
-Reusable low-level elements live in components/ui.
+Both are verified once. A prompt appears on every login page until complete.
 
-- components/ui/Button.jsx: button variants (primary, accent, outline, danger outline)
-- components/ui/Badge.jsx: status badges with color mapping
-- components/ui/StatCard.jsx: compact KPI card for dashboard metrics
-- components/ui/Modal.jsx: generic modal shell for optional dialogs
+---
 
-These primitives keep page files clean and prevent style duplication.
+## Pages Reference
 
-### 4) Domain Components
+| Page | Route | What it does |
+|---|---|---|
+| Login | `/` | Brand authentication |
+| Dashboard | `/dashboard` | Active orders, recent activity |
+| My Quotes | `/order-status` | Pricing breakdown, sample video, pay button |
+| Track My Order | `/order-tracker` | Live order timeline |
+| Sample Orders | `/sample-requests` | All sample order history |
+| Order History | `/order-history/[id]` | Delivered order + approved sample video |
+| Payments & Invoices | `/invoices` | Payment history + PDF invoice downloads |
+| Identity Verification | `/kyc` | NIN + CAC verification (required before ordering) |
+| Profile & Settings | `/profile` | Update business profile |
 
-Feature-level components live in components/brand.
+---
 
-- components/brand/QuoteForm.jsx
-- components/brand/SampleInfoPage.jsx
-- components/brand/OrderTrackerCard.jsx
-- components/brand/InvoiceRow.jsx
-- components/brand/NotificationBell.jsx
+## Payment Flow
 
-This layer holds business-specific UI patterns, while still reusing the generic UI primitives.
+1. **Sample flat fee** — brand pays after admin confirms pricing. Paystack inline checkout.
+2. **Production balance** — brand pays after approving the sample. Amount = (materials + labour) × 1.075 VAT − sample credit.
 
-### 5) Data Layer (Mocked)
+Both payments go through Paystack. On success, Paystack calls the server webhook to advance the order status.
 
-All hardcoded mock content is centralized in data/mockData.js.
+---
 
-This file includes:
+## Invoices
 
-- Sidebar link definitions
-- Dashboard stats
-- Recent activity rows
-- Quote breakdown items
-- Order summary and timeline
-- Invoice rows
-- Order history rows and type filters
-- Sample flow information and step labels
-- Product type options
+All invoices are generated server-side as PDF files with the Leddar logo embedded.
 
-Benefits:
+Filename format: `leddar-invoice-{INV-XXXXXXXX}.pdf`
 
-- Single source of truth for prototype content
-- Easy to swap with real API responses later
-- Predictable page rendering with no side effects
+Downloaded from the Payments & Invoices page.
 
-## Styling System
+---
 
-### Tailwind Configuration
+## Testing
 
-Custom brand palette is defined in tailwind.config.js:
+### Test Structure
 
-- leather: #6B3A2A
-- gold: #C49A3C
-- cream: #FAF7F4
-- espresso: #1C1412
-- ink: #1A1A1A
-- success: #2D6A4F
+```
+__tests__/
+└── services/
+    ├── authService.test.js   # Login, logout, session persistence, token refresh
+    └── paymentService.test.js # Paystack initialisation (sample + production),
+                               #   payment verification, error handling
+```
 
-### Global Styles
+### Running Tests
 
-styles/globals.css defines reusable visual utilities:
+```bash
+# Run all tests
+npm test
 
-- Atmospheric background gradients
-- Shared card styling
-- Form input and label classes
-- Page title and subtitle helper classes
+# Run a specific test file
+npx jest __tests__/services/paymentService.test.js
 
-This provides visual consistency while keeping JSX class lists manageable.
+# Run tests matching a name pattern
+npx jest --testNamePattern="initialize"
 
-## How To Extend The Prototype
+# Watch mode (re-runs on file change)
+npx jest --watch
+```
 
-1. Add or update mock data in data/mockData.js.
-2. Build new feature UIs in components/brand.
-3. Reuse shared primitives from components/ui.
-4. For dashboard routes, wrap page content in components/layout/PageWrapper.jsx.
-5. Keep business copy and table rows mock-driven rather than inline where possible.
+Tests run in **jsdom** environment with **babel-jest**. The `apiClient` Axios instance is mocked — no real API calls or Paystack checkouts are triggered.
 
-## Migration Path To Real Backend
-
-When backend APIs are ready, migrate incrementally:
-
-1. Replace data/mockData.js exports with API hooks one feature at a time.
-2. Preserve component boundaries (layout/ui/brand) to reduce refactor cost.
-3. Keep page routes unchanged so navigation and QA scripts remain stable.
+---
 
 ## Notes
 
-- This prototype is intentionally frontend-only.
-- All current pages are statically renderable and compile through Next.js production build.
-
-## Detailed Integration Documentation
-
-For route flows, frontend state transitions, and backend API contract mapping, see:
-
-- docs/FRONTEND_FLOW_AND_API_INTEGRATION.md
+- Sample video is only shown once admin approves and forwards it (not immediately on artisan upload).
+- Approved sample video persists on the Order History page.
+- VAT (7.5%) is shown in the payment confirmation modal, not duplicated on the quote card.
