@@ -1,83 +1,240 @@
-import { calculateTotalWithVat } from "../utils/pricing";
+// // src/services/paymentService.js  (frontend)
+// import axios from "axios";
+// import { getSession } from "./authService";
 
-function wait(ms = 600) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+
+// function authHeaders() {
+//   const session = getSession();
+//   if (!session?.token) throw new Error("Not authenticated.");
+//   return { Authorization: `Bearer ${session.token}` };
+// }
+
+// // ---------------------------------------------------------------------------
+// // Sample flat fee — ₦30,000
+// // POST /api/v1/payments/initialize-sample
+// //
+// // No quoteId needed up front. The backend creates the Quote + Order after
+// // the Paystack webhook confirms payment. We send the quote intent (product
+// // details) as metadata so the webhook has everything it needs.
+// // ---------------------------------------------------------------------------
+
+// /**
+//  * @param {{ email: string, quoteIntent: object }} payload
+//  *   quoteIntent = { productType, quantity, requiredTimeline, notes, attachments }
+//  * @returns {{ reference, authorizationUrl, amount, vatAmount, totalAmount }}
+//  */
+// export async function initializeSamplePayment({ email, quoteIntent }) {
+//   const response = await axios.post(
+//     `${API_URL}/payments/initialize-sample`,
+//     { email, quoteIntent },
+//     { headers: authHeaders() },
+//   );
+//   return response.data.data;
+// }
+
+// // ---------------------------------------------------------------------------
+// // Production balance payment
+// // POST /api/v1/payments/initialize-production
+// // ---------------------------------------------------------------------------
+
+// /**
+//  * @param {{ email: string, orderId: string }} payload
+//  * @returns {{ reference, authorizationUrl, productionTotal, sampleCredit,
+//  *             balanceDue, vatAmount, totalPayable }}
+//  */
+// export async function initializeProductionPayment({ email, orderId }) {
+//   const response = await axios.post(
+//     `${API_URL}/payments/initialize-production`,
+//     { email, orderId },
+//     { headers: authHeaders() },
+//   );
+//   return response.data.data;
+// }
+
+// // ---------------------------------------------------------------------------
+// // Sample progress polling
+// // GET /api/v1/orders/:sampleRequestId/progress
+// // ---------------------------------------------------------------------------
+
+// /**
+//  * @param {string} sampleRequestId
+//  * @returns {{ sampleRequestId: string, currentStatus: string }}
+//  */
+// export async function getSampleProgress(sampleRequestId) {
+//   const response = await axios.get(
+//     `${API_URL}/orders/${sampleRequestId}/progress`,
+//     { headers: authHeaders() },
+//   );
+//   return response.data.data;
+// }
+
+// src/services/paymentService.js (frontend — brand app)
+import axios from "axios";
+import { getSession } from "./authService";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+
+function authHeaders() {
+  const session = getSession();
+  if (!session?.token) throw new Error("Not authenticated.");
+  return { Authorization: `Bearer ${session.token}` };
 }
 
-const SAMPLE_STATUS_ORDER = [
-  "requested",
-  "payment_confirmed",
-  "in_review",
-  "sample_ready",
-  "revisions_needed",
-  "completed",
-];
-
-const mockSampleRequests = {};
-
-function getStatusFromElapsed(elapsedMs) {
-  if (elapsedMs < 3000) {
-    return SAMPLE_STATUS_ORDER[0];
+// ---------------------------------------------------------------------------
+// Sample flat fee — ₦30,000
+// POST /api/v1/payments/initialize-sample
+// ---------------------------------------------------------------------------
+export async function initializeSamplePayment({ email, quoteIntent, fileIds = [] }) {
+  if (!quoteIntent?.productType || !quoteIntent?.quantity) {
+    throw new Error("Quote details are missing. Please go back to New Order and try again.");
   }
-  if (elapsedMs < 8000) {
-    return SAMPLE_STATUS_ORDER[1];
-  }
-  if (elapsedMs < 14000) {
-    return SAMPLE_STATUS_ORDER[2];
-  }
-  if (elapsedMs < 20000) {
-    return SAMPLE_STATUS_ORDER[3];
-  }
-  if (elapsedMs < 26000) {
-    return SAMPLE_STATUS_ORDER[4];
-  }
-  return SAMPLE_STATUS_ORDER[5];
+  const response = await axios.post(
+    `${API_URL}/payments/initialize-sample`,
+    { email, quoteIntent, fileIds },
+    { headers: authHeaders() },
+  );
+  return response.data.data;
 }
 
-export async function initializeSamplePayment({ email, amount }) {
-  // Replace with POST /payments/sample-fee when backend is ready.
-  await wait();
-
-  if (!email) {
-    throw new Error("Email is required to initialize payment.");
-  }
-
-  const baseAmount = Number(amount);
-  if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
-    throw new Error("A valid sample fee amount is required.");
-  }
-
-  const { vatAmount, totalAmount } = calculateTotalWithVat(baseAmount);
-
-  const sampleRequestId = `SAM-${Date.now()}`;
-  mockSampleRequests[sampleRequestId] = {
-    createdAt: Date.now(),
-  };
-
-  return {
-    reference: `PAY-${Date.now()}`,
-    authorizationUrl: "https://paystack.com/pay/mock-sample-fee",
-    amount: baseAmount,
-    vatAmount,
-    totalAmount,
-    sampleRequestId,
-  };
+// ---------------------------------------------------------------------------
+// Production balance payment
+// POST /api/v1/payments/initialize-production
+// ---------------------------------------------------------------------------
+export async function initializeProductionPayment({ email, orderId, quoteId }) {
+  if (!orderId && !quoteId) throw new Error("Either orderId or quoteId is required.");
+  const response = await axios.post(
+    `${API_URL}/payments/initialize-production`,
+    { email, ...(orderId ? { orderId } : { quoteId }) },
+    { headers: authHeaders() },
+  );
+  return response.data.data;
 }
 
-export async function getSampleProgress(sampleRequestId) {
-  // Replace with GET /samples/:id/progress when backend is ready.
-  await wait(400);
+// ---------------------------------------------------------------------------
+// Sample progress polling
+// GET /api/v1/brands/orders/:orderId/progress
+// ---------------------------------------------------------------------------
+export async function getSampleProgress(orderId) {
+  const response = await axios.get(
+    `${API_URL}/brands/orders/${orderId}/progress`,
+    { headers: authHeaders() },
+  );
+  return response.data.data;
+}
 
-  const sampleRequest = mockSampleRequests[sampleRequestId];
-  if (!sampleRequest) {
-    throw new Error("Sample request not found.");
-  }
+// ---------------------------------------------------------------------------
+// Brand quotes — view all quotes + single quote with pricing
+// ---------------------------------------------------------------------------
+export async function getBrandQuotes() {
+  const response = await axios.get(
+    `${API_URL}/brands/quotes`,
+    { headers: authHeaders() },
+  );
+  return response.data.data;
+}
 
-  const elapsedMs = Date.now() - sampleRequest.createdAt;
+export async function getBrandQuoteById(quoteId) {
+  const response = await axios.get(
+    `${API_URL}/brands/quotes/${quoteId}`,
+    { headers: authHeaders() },
+  );
+  return response.data.data;
+}
 
-  return {
-    id: sampleRequestId,
-    currentStatus: getStatusFromElapsed(elapsedMs),
-    updatedAt: new Date().toISOString(),
-  };
+// ---------------------------------------------------------------------------
+// Brand orders — history + single order detail
+// ---------------------------------------------------------------------------
+export async function getBrandOrders() {
+  const response = await axios.get(
+    `${API_URL}/brands/orders`,
+    { headers: authHeaders() },
+  );
+  return response.data.data;
+}
+
+export async function getBrandOrderById(orderId) {
+  const response = await axios.get(
+    `${API_URL}/brands/orders/${orderId}`,
+    { headers: authHeaders() },
+  );
+  return response.data.data;
+}
+
+// ---------------------------------------------------------------------------
+// Sample review — brand approves / rejects / requests edit
+// ---------------------------------------------------------------------------
+export async function submitSampleReview({ orderId, decision, feedback }) {
+  const response = await axios.post(
+    `${API_URL}/brands/orders/${orderId}/review`,
+    { decision, feedback },
+    { headers: authHeaders() },
+  );
+  return response.data.data;
+}
+
+export async function getSampleReviewData(orderId) {
+  const response = await axios.get(
+    `${API_URL}/brands/orders/${orderId}/sample-review`,
+    { headers: authHeaders() },
+  );
+  return response.data.data;
+}
+
+// ---------------------------------------------------------------------------
+// Payment history
+// ---------------------------------------------------------------------------
+export async function getBrandPayments() {
+  const response = await axios.get(
+    `${API_URL}/brands/payments`,
+    { headers: authHeaders() },
+  );
+  return response.data.data;
+}
+
+// ---------------------------------------------------------------------------
+// Job pipeline — brand actions
+// ---------------------------------------------------------------------------
+
+/** Brand approves the sample → triggers production job creation */
+export async function approveSample(jobId) {
+  const response = await axios.patch(
+    `${API_URL}/brands/jobs/${jobId}/approve-sample`,
+    {},
+    { headers: authHeaders() },
+  );
+  return response.data;
+}
+
+/**
+ * Brand requests a correction
+ * @param {string} jobId
+ * @param {string} note  — feedback for the artisan
+ */
+export async function requestCorrection(jobId, note) {
+  const response = await axios.patch(
+    `${API_URL}/brands/jobs/${jobId}/request-correction`,
+    { note },
+    { headers: authHeaders() },
+  );
+  return response.data;
+}
+
+/** Brand confirms receipt of dispatched production order */
+export async function confirmReceipt(jobId) {
+  const response = await axios.patch(
+    `${API_URL}/brands/jobs/${jobId}/confirm-receipt`,
+    {},
+    { headers: authHeaders() },
+  );
+  return response.data;
+}
+
+/** Get a 15-min presigned URL for a private S3 file (video, etc.) */
+export async function presignBrandFile(url) {
+  const response = await axios.get(
+    `${API_URL}/brands/files/presign`,
+    { params: { url }, headers: authHeaders() },
+  );
+  return response.data.signedUrl;
 }

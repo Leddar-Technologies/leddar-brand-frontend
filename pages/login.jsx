@@ -92,7 +92,6 @@ export default function Login() {
                 </label>
                 <Link
                   href="/forgot-password"
-                  text-sm
                   className="text-xs font-bold text-leather hover:text-gold transition"
                 >
                   Forgot password?

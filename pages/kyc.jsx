@@ -1,400 +1,394 @@
-import { useMemo, useState, useEffect } from "react";
+// pages/kyc.jsx — Brand KYC
+// 3-step: NIN → CAC (Business) → Business Profile
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
-  CircleCheckBig,
-  ShieldCheck,
-  AlertCircle,
-  FileText,
-  User,
-  Building2,
-  Lock,
-  ChevronRight,
+  ShieldCheck, AlertCircle, CheckCircle2, RefreshCw,
+  MapPin, ChevronRight, ChevronLeft,
+  Lock, FileText, Loader2, Building2, Fingerprint,
 } from "lucide-react";
 import PageWrapper from "../components/layout/PageWrapper";
-import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import Spinner from "../components/ui/Spinner";
-import { getKycStatus, verifyKycIdentity } from "../services/authService";
+import {
+  getKycStatus, verifyNIN, verifyCAC, retryKycVerification, saveBrandProfile,
+} from "../services/authService";
+
+const NG_STATES = [
+  "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno",
+  "Cross River","Delta","Ebonyi","Edo","Ekiti","Enugu","FCT Abuja","Gombe",
+  "Imo","Jigawa","Kaduna","Kano","Katsina","Kebbi","Kogi","Kwara","Lagos",
+  "Nasarawa","Niger","Ogun","Ondo","Osun","Oyo","Plateau","Rivers","Sokoto",
+  "Taraba","Yobe","Zamfara",
+];
+
+const STEPS = [
+  { id: 1, label: "Personal ID (NIN)", icon: Fingerprint  },
+  { id: 2, label: "Business (CAC)",    icon: Building2    },
+  { id: 3, label: "Business Profile",  icon: MapPin       },
+];
+
+// Maps a per-type status string ("verified"/"rejected"/null) → display config
+const typeStatusCfg = (s) => {
+  if (s === "verified") return { label: "Verified ✓", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+  if (s === "rejected") return { label: "Failed",     cls: "bg-red-50    text-red-700    border-red-200"     };
+  return                       { label: "Pending",    cls: "bg-[#FFF8EA] text-[#8B6A39] border-[#E8DED5]"  };
+};
 
 export default function KycPage() {
   const router = useRouter();
-  const [kycProfile, setKycProfile] = useState({
-    status: "not_started",
-    rejectionReason: "",
-    firstname: "",
-    lastname: "",
-    businessName: "",
-  });
+  const [kycProfile, setKycProfile] = useState({ status: "not_started", ninStatus: "not_started", cacStatus: "not_started" });
+  const [busy, setBusy]             = useState(true);
+  const [modalOpen, setModalOpen]   = useState(false);
+  const [step, setStep]             = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [stepError, setStepError]   = useState("");
 
-  const [busy, setBusy] = useState(true);
-  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
-  const [idType, setIdType] = useState("NIN");
-  const [formData, setFormData] = useState({
-    idNumber: "",
-    firstName: "",
-    lastName: "",
-    dob: "",
-    companyType: "Limited Company",
-  });
-  const [verifyError, setVerifyError] = useState("");
+  // Step 1 — NIN
+  const [nin, setNin]           = useState("");
+  const [firstName, setFirst]   = useState("");
+  const [lastName,  setLast]    = useState("");
+  const [dob,       setDob]     = useState("");
 
-  const returnUrl =
-    typeof router.query.returnUrl === "string"
-      ? router.query.returnUrl
-      : "/dashboard";
+  // Step 2 — CAC
+  const [rcNumber,     setRcNumber]     = useState("");
+  const [companyName,  setCompanyName]  = useState("");
+
+  // Step 3 — Business Profile
+  const [state,       setState]       = useState("");
+  const [workAddress, setWorkAddress] = useState("");
+
+  const returnUrl = typeof router.query.returnUrl === "string"
+    ? router.query.returnUrl : "/dashboard";
 
   useEffect(() => {
-    async function loadStatus() {
-      try {
-        const profile = await getKycStatus();
-        setKycProfile(profile);
-      } catch (error) {
-        console.error("Failed to load KYC status:", error);
-      } finally {
-        setBusy(false);
-      }
-    }
-    loadStatus();
+    getKycStatus()
+      .then((p) => setKycProfile(p || { status: "not_started", ninStatus: "not_started", cacStatus: "not_started" }))
+      .catch(() => {})
+      .finally(() => setBusy(false));
   }, []);
 
-  const statusCopy = useMemo(() => {
-    const configs = {
-      in_progress: {
-        badge: "In Progress",
-        title: "Action Required",
-        note: "Please complete the identity verification form.",
-        color: "orange",
-        icon: FileText,
-      },
-      pending_review: {
-        badge: "Pending",
-        title: "Review in Progress",
-        note: "Our compliance team is verifying your details.",
-        color: "blue",
-        icon: Spinner,
-      },
-      verified: {
-        badge: "Verified",
-        title: "Identity Verified",
-        note: "Your account is fully unlocked. You can now process payments.",
-        color: "green",
-        icon: ShieldCheck,
-      },
-      rejected: {
-        badge: "Rejected",
-        title: "Verification Failed",
-        note:
-          kycProfile.rejectionReason ||
-          "Details provided did not match official records.",
-        color: "red",
-        icon: AlertCircle,
-      },
-      default: {
-        badge: "Not Started",
-        title: "Identity Verification",
-        note: "Verify your identity to unlock deposits and professional features.",
-        color: "gray",
-        icon: Lock,
-      },
-    };
-    return configs[kycProfile.status] || configs.default;
-  }, [kycProfile]);
+  const isVerified   = kycProfile.status === "verified";
+  const ninVerified  = kycProfile.ninStatus === "verified";
+  const cacVerified  = kycProfile.cacStatus === "verified";
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  // Where to resume the modal — skip already-verified steps
+  function getResumeStep() {
+    if (!ninVerified) return 1;
+    if (!cacVerified) return 2;
+    return 3;
+  }
 
-  async function handleSubmitVerification(event) {
-    event.preventDefault();
-    setVerifyError("");
-    setBusy(true);
+  function openModal() {
+    setStep(getResumeStep());
+    setStepError("");
+    setNin(""); setFirst(""); setLast(""); setDob("");
+    setRcNumber(""); setCompanyName("");
+    setState(""); setWorkAddress("");
+    setModalOpen(true);
+  }
+
+  function handleRetry() {
+    retryKycVerification();
+    setKycProfile({ status: "not_started", ninStatus: "not_started", cacStatus: "not_started" });
+    openModal();
+  }
+
+  // ── Step 1: NIN ──────────────────────────────────────────────────────────────
+  async function handleStep1(e) {
+    e.preventDefault();
+    setStepError("");
+    setSubmitting(true);
     try {
-      const verifiedProfile = await verifyKycIdentity({ idType, ...formData });
-      setKycProfile(verifiedProfile);
-      setVerifyModalOpen(false);
-      if (verifiedProfile.status === "verified") router.push(returnUrl);
+      const ninStatus = await verifyNIN({ nin: nin.trim(), firstName: firstName.trim(), lastName: lastName.trim(), dob });
+      setKycProfile((p) => ({ ...p, ninStatus }));
+      if (ninStatus === "verified") {
+        setStep(2);
+      } else {
+        setStepError("NIN could not be verified. Please check your details and try again.");
+      }
     } catch (err) {
-      setVerifyError(
-        err.message || "Identity mismatch. Please check your details.",
-      );
+      setStepError(err.message || "Verification failed. Please try again.");
     } finally {
-      setBusy(false);
+      setSubmitting(false);
     }
   }
 
-  const StatusIcon = statusCopy.icon;
+  // ── Step 2: CAC ──────────────────────────────────────────────────────────────
+  async function handleStep2(e) {
+    e.preventDefault();
+    setStepError("");
+    setSubmitting(true);
+    try {
+      const cacStatus = await verifyCAC({ rcNumber: rcNumber.trim(), companyName: companyName.trim() });
+      setKycProfile((p) => ({ ...p, cacStatus }));
+      if (cacStatus === "verified") {
+        setStep(3);
+      } else {
+        setStepError("Business could not be verified. Please check your RC number and company name.");
+      }
+    } catch (err) {
+      setStepError(err.message || "Verification failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ── Step 3: Business Profile ──────────────────────────────────────────────────
+  async function handleStep3(e) {
+    e.preventDefault();
+    setStepError("");
+    if (!state)              { setStepError("Please select your state."); return; }
+    if (!workAddress.trim()) { setStepError("Please enter your work address."); return; }
+    setSubmitting(true);
+    try {
+      await saveBrandProfile({ state, workAddress });
+      setModalOpen(false);
+      setKycProfile((p) => ({ ...p, status: "verified" }));
+      setTimeout(() => router.push(returnUrl), 800);
+    } catch (err) {
+      setStepError(err.message || "Failed to save profile.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+  const overallBorder = isVerified
+    ? "border-emerald-200 bg-emerald-50/40"
+    : kycProfile.status === "rejected"
+    ? "border-red-200 bg-red-50/40"
+    : "border-[#E8DED5] bg-white";
 
   return (
     <PageWrapper>
-      <div className="max-w-2xl mx-auto py-12 px-4">
-        {/* Progress Header (Optional Visual) */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Account Security
-          </h1>
-          <p className="text-slate-500 mt-2">
-            Manage your verification status and account limits
+      <div className="mx-auto max-w-2xl py-8 space-y-6">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8A7A72]">Account Setup</p>
+          <h1 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">Identity & Business Verification</h1>
+          <p className="mt-1 text-sm text-[#5A4A44]">
+            Complete all 3 steps to unlock orders and payments on your account.
           </p>
         </div>
 
-        {/* Status Card */}
-        <div
-          className={`relative overflow-hidden rounded-3xl border p-8 transition-all duration-300 shadow-xl shadow-slate-200/50 ${
-            kycProfile.status === "verified"
-              ? "bg-white border-green-200"
-              : "bg-white border-slate-100"
-          }`}
-        >
-          {/* Subtle Background Pattern/Gradient */}
-          <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-slate-50 rounded-full blur-3xl opacity-50" />
-
-          <div className="relative flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
-            <div
-              className={`flex-shrink-0 p-4 rounded-2xl shadow-inner ${
-                kycProfile.status === "verified"
-                  ? "bg-green-100 text-green-600"
-                  : "bg-slate-100 text-slate-400"
-              }`}
-            >
-              <StatusIcon
-                size={32}
-                strokeWidth={2.5}
-                className={
-                  kycProfile.status === "pending_review" ? "animate-spin" : ""
-                }
-              />
+        {/* ── Overall status card ── */}
+        <div className={`rounded-2xl border p-6 sm:p-8 ${overallBorder}`}>
+          <div className="flex flex-col sm:flex-row items-start gap-5">
+            <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
+              isVerified ? "bg-emerald-50 text-emerald-600" : "bg-[#FFF8EA] text-[#8B6A39]"
+            }`}>
+              {isVerified ? <CheckCircle2 className="h-7 w-7" /> : <ShieldCheck className="h-7 w-7" />}
             </div>
-
             <div className="flex-1">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                <h2 className="text-xl font-bold text-slate-900 leading-tight">
-                  {statusCopy.title}
-                </h2>
-                <Badge
-                  status={statusCopy.badge}
-                  className="w-fit mx-auto md:mx-0"
-                />
-              </div>
-              <p className="text-slate-500 mt-2 text-sm md:text-base max-w-md">
-                {statusCopy.note}
+              <h2 className="text-lg font-semibold text-ink">
+                {isVerified ? "Account Fully Verified ✓" : "Complete Your Verification"}
+              </h2>
+              <p className="mt-1 text-sm text-[#5A4A44]">
+                {isVerified
+                  ? "Your identity and business are verified. Orders and payments are unlocked."
+                  : "All 3 checks are required before you can place an order."}
               </p>
 
-              {(kycProfile.status === "not_started" ||
-                kycProfile.status === "rejected" ||
-                kycProfile.status === "in_progress") && (
-                <Button
-                  variant="accent"
-                  className="mt-6 px-8 py-3 rounded-xl font-bold transition-transform active:scale-95 flex items-center gap-2"
-                  onClick={() => setVerifyModalOpen(true)}
-                  disabled={busy}
-                >
-                  {kycProfile.status === "rejected"
-                    ? "Retry Verification"
-                    : "Start Verification"}
-                  <ChevronRight size={18} />
+              {/* Per-step status pills */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {[
+                  { label: "NIN",     status: kycProfile.ninStatus },
+                  { label: "CAC",     status: kycProfile.cacStatus },
+                  { label: "Profile", status: isVerified ? "verified" : "not_started" },
+                ].map(({ label, status }) => {
+                  const cfg = typeStatusCfg(status);
+                  return (
+                    <span key={label} className={`rounded-full border px-3 py-1 text-xs font-semibold ${cfg.cls}`}>
+                      {label}: {cfg.label}
+                    </span>
+                  );
+                })}
+              </div>
+
+              {!isVerified && (
+                <Button variant="accent" className="mt-5 inline-flex items-center gap-2"
+                  onClick={kycProfile.ninStatus === "rejected" || kycProfile.cacStatus === "rejected" ? handleRetry : openModal}
+                  disabled={busy}>
+                  {kycProfile.ninStatus === "rejected" || kycProfile.cacStatus === "rejected"
+                    ? <><RefreshCw className="h-4 w-4" /> Retry Failed Step</>
+                    : <><ShieldCheck className="h-4 w-4" /> {ninVerified && cacVerified ? "Complete Profile" : ninVerified ? "Continue (CAC)" : "Start Verification"}</>
+                  }
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
+              )}
+              {isVerified && (
+                <button onClick={() => router.push(returnUrl)}
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:underline">
+                  <CheckCircle2 className="h-4 w-4" /> Continue to dashboard
+                </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Benefits Grid */}
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {[
-            {
-              icon: Building2,
-              label: "Business Wallet",
-              desc: "Local & Int'l deposits",
-              color: "blue",
-            },
-            {
-              icon: User,
-              label: "Identity Trust",
-              desc: "Priority processing",
-              color: "purple",
-            },
-            {
-              icon: CircleCheckBig,
-              label: "Zero Limits",
-              desc: "Full withdrawal access",
-              color: "green",
-            },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="group p-5 rounded-2xl bg-white border border-slate-100 hover:border-accent/30 hover:shadow-lg hover:shadow-slate-200/50 transition-all"
-            >
-              <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mb-4 group-hover:bg-accent/5 transition-colors">
-                <item.icon
-                  size={20}
-                  className="text-slate-400 group-hover:text-accent"
-                />
-              </div>
-              <p className="font-bold text-sm text-slate-900">{item.label}</p>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                {item.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-12 flex flex-col items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-full border border-slate-100">
-            <ShieldCheck size={14} className="text-slate-400" />
-            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-              Secure AES-256 Encryption
+        {/* Trust footer */}
+        <div className="flex justify-center">
+          <div className="flex items-center gap-2 rounded-full border border-[#E8DED5] bg-white px-4 py-2">
+            <ShieldCheck className="h-3.5 w-3.5 text-[#9B8A82]" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#9B8A82]">
+              Secured by QoreID · AES-256 Encrypted
             </span>
           </div>
-          <p className="text-center text-xs text-slate-400 max-w-xs">
-            Identity verification is secured by{" "}
-            <strong className="text-slate-600">VerifyMe</strong>. Leddar does
-            not store sensitive government ID numbers.
-          </p>
         </div>
       </div>
 
-      <Modal
-        open={verifyModalOpen}
-        onClose={() => setVerifyModalOpen(false)}
-        className="max-w-md"
-      >
-        <div className="p-2">
-          <h3 className="text-xl font-bold text-slate-900">Identity Details</h3>
-          <p className="text-sm text-slate-500 mb-6">
-            Ensure your details match your official documents.
-          </p>
+      {/* ── 3-Step Modal ── */}
+      <Modal open={modalOpen} onClose={() => { if (!submitting) setModalOpen(false); }}
+        title={`Step ${step} of 3 — ${STEPS[step - 1]?.label}`}>
+        <div className="space-y-5">
 
-          <form onSubmit={handleSubmitVerification} className="space-y-6">
-            {/* ID Type Selector - More Modern */}
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 block">
-                Select ID Type
-              </label>
-              <div className="flex p-1 bg-slate-100 rounded-xl">
-                {["NIN", "CAC", "Voters Card"].map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setIdType(type)}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                      idType === type
-                        ? "bg-white text-accent shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    {type === "Voters Card" ? "Voters" : type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="relative">
-                <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
-                  {idType === "CAC" ? "RC Number" : `${idType} Number`}
-                </label>
-                <input
-                  name="idNumber"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-accent focus:ring-4 focus:ring-accent/10 transition-all outline-none text-sm font-medium"
-                  required
-                  placeholder={`e.g. ${idType === "CAC" ? "RC123456" : "12345678901"}`}
-                  value={formData.idNumber}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              {idType === "CAC" ? (
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
-                    Company Type
-                  </label>
-                  <select
-                    name="companyType"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:border-accent focus:ring-4 focus:ring-accent/10 transition-all outline-none text-sm font-medium appearance-none"
-                    value={formData.companyType}
-                    onChange={handleInputChange}
-                  >
-                    <option>Limited Company</option>
-                    <option>Business Name</option>
-                    <option>Incorporated Trustee</option>
-                  </select>
+          {/* Progress bar */}
+          <div className="flex items-center gap-2">
+            {STEPS.map((s, i) => {
+              const Icon     = s.icon;
+              const done     = (s.id === 1 && ninVerified) || (s.id === 2 && cacVerified);
+              const active   = step === s.id;
+              return (
+                <div key={s.id} className="flex flex-1 items-center gap-2">
+                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                    done   ? "bg-emerald-500 text-white"
+                    : active ? "bg-leather text-white"
+                    : "bg-[#F0EDE8] text-[#9B8A82]"
+                  }`}>
+                    {done ? <CheckCircle2 className="h-4 w-4" /> : s.id}
+                  </div>
+                  <span className={`hidden sm:inline text-xs font-medium ${active || done ? "text-ink" : "text-[#9B8A82]"}`}>
+                    {s.label}
+                  </span>
+                  {i < STEPS.length - 1 && (
+                    <div className={`flex-1 h-0.5 ${done ? "bg-emerald-400" : "bg-[#E8DED5]"}`} />
+                  )}
                 </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
-                        First Name
-                      </label>
-                      <input
-                        name="firstName"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-accent focus:ring-4 focus:ring-accent/10 transition-all outline-none text-sm font-medium"
-                        required
-                        placeholder="John"
-                        value={formData.firstName}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
-                        Last Name
-                      </label>
-                      <input
-                        name="lastName"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-accent focus:ring-4 focus:ring-accent/10 transition-all outline-none text-sm font-medium"
-                        required
-                        placeholder="Doe"
-                        value={formData.lastName}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
-                      Date of Birth
-                    </label>
-                    <input
-                      name="dob"
-                      type="date"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-accent focus:ring-4 focus:ring-accent/10 transition-all outline-none text-sm font-medium"
-                      required
-                      value={formData.dob}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
+              );
+            })}
+          </div>
 
-            {verifyError && (
-              <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 text-red-600 text-xs animate-in fade-in slide-in-from-top-1">
-                <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                <p className="leading-relaxed font-medium">{verifyError}</p>
+          {/* ── STEP 1: NIN ── */}
+          {step === 1 && (
+            <form onSubmit={handleStep1} className="space-y-4">
+              <p className="text-sm text-[#5A4A44]">
+                Enter your personal NIN details exactly as they appear on your ID card.
+              </p>
+              <div>
+                <label className="label text-xs">NIN (11 digits) <span className="text-red-500">*</span></label>
+                <input className="input" required placeholder="e.g. 12345678901"
+                  value={nin} onChange={(e) => setNin(e.target.value)} />
               </div>
-            )}
-
-            <div className="flex flex-col gap-3 pt-2">
-              <Button
-                type="submit"
-                variant="accent"
-                className="w-full py-4 rounded-xl font-bold shadow-lg shadow-accent/20"
-                disabled={busy}
-              >
-                {busy ? <Spinner size="sm" /> : "Submit Verification"}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label text-xs">First Name <span className="text-red-500">*</span></label>
+                  <input className="input" required placeholder="As on your ID"
+                    value={firstName} onChange={(e) => setFirst(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label text-xs">Last Name <span className="text-red-500">*</span></label>
+                  <input className="input" required placeholder="As on your ID"
+                    value={lastName} onChange={(e) => setLast(e.target.value)} />
+                </div>
+              </div>
+              {stepError && <ErrorBox msg={stepError} />}
+              <Button type="submit" variant="accent" className="w-full" disabled={submitting}>
+                {submitting
+                  ? <LoadingText text="Verifying NIN with QoreID..." />
+                  : <span className="flex items-center justify-center gap-2">Verify NIN <ChevronRight className="h-4 w-4" /></span>
+                }
               </Button>
-              <button
-                type="button"
-                className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors py-2"
-                onClick={() => setVerifyModalOpen(false)}
-              >
-                Cancel & Return
-              </button>
-            </div>
-          </form>
+            </form>
+          )}
+
+          {/* ── STEP 2: CAC ── */}
+          {step === 2 && (
+            <form onSubmit={handleStep2} className="space-y-4">
+              <p className="text-sm text-[#5A4A44]">
+                Verify your business registration with the Corporate Affairs Commission (CAC).
+              </p>
+              <div>
+                <label className="label text-xs">RC / BN Number <span className="text-red-500">*</span></label>
+                <input className="input" required placeholder="e.g. RC123456 or BN123456"
+                  value={rcNumber} onChange={(e) => setRcNumber(e.target.value)} />
+              </div>
+              <div>
+                <label className="label text-xs">Registered Company Name <span className="text-red-500">*</span></label>
+                <input className="input" required placeholder="Exact name as registered with CAC"
+                  value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+              </div>
+              {stepError && <ErrorBox msg={stepError} />}
+              <div className="flex gap-3">
+                <button type="button"
+                  onClick={() => { setStep(1); setStepError(""); }}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-800">
+                  <ChevronLeft className="h-4 w-4" /> Back
+                </button>
+                <Button type="submit" variant="accent" className="flex-1" disabled={submitting}>
+                  {submitting
+                    ? <LoadingText text="Verifying with CAC..." />
+                    : <span className="flex items-center justify-center gap-2">Verify Business <ChevronRight className="h-4 w-4" /></span>
+                  }
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {/* ── STEP 3: Business Profile ── */}
+          {step === 3 && (
+            <form onSubmit={handleStep3} className="space-y-4">
+              <p className="text-sm text-[#5A4A44]">
+                Tell us where your business is based.
+              </p>
+              <div>
+                <label className="label text-xs">State <span className="text-red-500">*</span></label>
+                <select className="input" required value={state} onChange={(e) => setState(e.target.value)}>
+                  <option value="">Select state</option>
+                  {NG_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label text-xs">Work / Office Address <span className="text-red-500">*</span></label>
+                <textarea className="input min-h-20 resize-none" required
+                  placeholder="e.g. 12 Broad Street, Lagos Island, Lagos"
+                  value={workAddress} onChange={(e) => setWorkAddress(e.target.value)} />
+              </div>
+              {stepError && <ErrorBox msg={stepError} />}
+              <div className="flex gap-3">
+                <button type="button"
+                  onClick={() => { setStep(2); setStepError(""); }}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-800">
+                  <ChevronLeft className="h-4 w-4" /> Back
+                </button>
+                <Button type="submit" variant="accent" className="flex-1" disabled={submitting}>
+                  {submitting
+                    ? <LoadingText text="Saving..." />
+                    : <span className="flex items-center justify-center gap-2">Complete Setup <CheckCircle2 className="h-4 w-4" /></span>
+                  }
+                </Button>
+              </div>
+            </form>
+          )}
+
         </div>
       </Modal>
     </PageWrapper>
+  );
+}
+
+function ErrorBox({ msg }) {
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-[#FEE2E2] bg-[#FFF5F5] p-3 text-xs text-[#B42318]">
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{msg}</span>
+    </div>
+  );
+}
+
+function LoadingText({ text }) {
+  return (
+    <span className="flex items-center justify-center gap-2">
+      <Loader2 className="h-4 w-4 animate-spin" />{text}
+    </span>
   );
 }

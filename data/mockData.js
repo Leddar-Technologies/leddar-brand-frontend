@@ -1,15 +1,15 @@
 export const businessName = "Zara Couture";
 
 export const sidebarLinks = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "New Order", href: "/new-order" },
-  { label: "Order Status", href: "/order-status" },
-  { label: "Order Tracker", href: "/order-tracker" },
-  { label: "Sample Requests", href: "/sample-requests" },
-  { label: "Payment & Invoices", href: "/invoices" },
-  { label: "Order History", href: "/order-history" },
-  { label: "Verification (KYC)", href: "/kyc" },
-  { label: "Profile & Settings", href: "/profile" },
+  { label: "Dashboard",           href: "/dashboard" },
+  { label: "Place an Order",      href: "/new-order" },
+  { label: "My Quotes",           href: "/order-status" },
+  { label: "Track My Order",      href: "/order-tracker" },
+  { label: "Sample Orders",       href: "/sample-requests" },
+  { label: "Payments & Invoices", href: "/invoices" },
+  { label: "Order History",       href: "/order-history" },
+  { label: "Identity Verification", href: "/kyc" },
+  { label: "Profile & Settings",  href: "/profile" },
 ];
 
 export const stats = [
@@ -213,8 +213,7 @@ export const productTypes = [
   "Women Footwear",
   "Men Bags",
   "Women Bags",
-  "Wallets & Small Goods",
   "Belts",
+  "Wallets & Small Goods",
   "Custom Leather Products",
-  "Not sure yet"
 ];
