@@ -371,6 +371,16 @@ function SampleOrderCard({ order, linkedProduction, onRefresh }) {
               Sample · {new Date(order.createdAt).toLocaleDateString("en-NG")}
               {order.flatFeePaid ? ` · ${formatNaira(order.flatFeePaid)} paid` : ""}
             </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="font-mono text-[10px] font-semibold text-[#C49A3C] bg-[#FFF8EA] border border-[#E8D89A] rounded px-1.5 py-0.5">
+                #{order.ref}
+              </span>
+              {order.quote?.ref && (
+                <span className="font-mono text-[10px] font-semibold text-[#6A5B54] bg-[#F4EFEA] border border-[#E8DED5] rounded px-1.5 py-0.5">
+                  [{order.quote.ref}]
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -645,6 +655,16 @@ function ProductionOrderCard({ order, onRefresh }) {
               Production · {new Date(order.createdAt).toLocaleDateString("en-NG")}
               {order.totalAmount ? ` · ${formatNaira(order.totalAmount)}` : ""}
             </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="font-mono text-[10px] font-semibold text-[#C49A3C] bg-[#FFF8EA] border border-[#E8D89A] rounded px-1.5 py-0.5">
+                #{order.ref}
+              </span>
+              {order.quote?.ref && (
+                <span className="font-mono text-[10px] font-semibold text-[#6A5B54] bg-[#F4EFEA] border border-[#E8DED5] rounded px-1.5 py-0.5">
+                  [{order.quote.ref}]
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">

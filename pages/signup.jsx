@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/router";
@@ -11,8 +11,10 @@ import {
   Eye,
   EyeOff,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import Spinner from "../components/ui/Spinner";
+import PhoneInput, { validatePhone, normalizePhone } from "../components/ui/PhoneInput";
 import {
   submitAccessRequest,
   resetState,
@@ -90,11 +92,36 @@ export default function Signup() {
     if (responseMessage) setResponseMessage("");
   };
 
+  const [volumeOpen, setVolumeOpen] = useState(false);
+  const volumeRef = useRef(null);
+
+  const VOLUME_OPTIONS = [
+    { label: "1–50 units", value: "1-50" },
+    { label: "51–200 units", value: "51-200" },
+    { label: "201+ units", value: "201+" },
+  ];
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (volumeRef.current && !volumeRef.current.contains(e.target)) {
+        setVolumeOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   async function handleSubmit(event) {
     event.preventDefault();
 
     if (formData.productType.length === 0) {
       setResponseMessage("Please select at least one product type.");
+      return;
+    }
+
+    const normalizedPhone = normalizePhone(formData.phone);
+    if (!validatePhone(normalizedPhone)) {
+      setResponseMessage("Please enter a valid phone number, e.g. +2348141955755");
       return;
     }
 
@@ -173,7 +200,7 @@ export default function Signup() {
                   required
                   value={formData.businessName}
                   onChange={updateField}
-                  className="w-full rounded-lg border border-[#D7CBC1] px-4 py-3 outline-none focus:ring-1 focus:ring-gold"
+                  className={`w-full rounded-lg border px-4 py-3 outline-none transition-colors focus:border-leather focus:ring-1 focus:ring-leather ${formData.businessName ? "border-leather bg-[#FDF5EE]" : "border-[#D7CBC1] bg-white"}`}
                   placeholder="e.g. Heritage Leather"
                 />
               </div>
@@ -208,18 +235,53 @@ export default function Signup() {
                 <label className="mb-1 block text-xs font-semibold text-[#3C2F2A]">
                   Monthly Volume *
                 </label>
-                <select
-                  name="estimatedQuantity"
-                  required
-                  value={formData.estimatedQuantity}
-                  onChange={updateField}
-                  className="w-full rounded-lg border border-[#D7CBC1] px-4 py-3 outline-none"
-                >
-                  <option value="">Select range</option>
-                  <option value="1-50">1-50 units</option>
-                  <option value="51-200">51-200 units</option>
-                  <option value="201+">201+ units</option>
-                </select>
+                <div ref={volumeRef} className="relative">
+                  {/* Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setVolumeOpen((o) => !o)}
+                    className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 text-sm transition-all ${
+                      formData.estimatedQuantity
+                        ? "border-leather bg-[#FDF5EE] text-ink"
+                        : "border-[#D7CBC1] bg-white text-[#A39289]"
+                    } ${volumeOpen ? "ring-1 ring-leather border-leather" : ""}`}
+                  >
+                    <span>
+                      {VOLUME_OPTIONS.find(o => o.value === formData.estimatedQuantity)?.label || "Select range"}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`text-[#8B6355] transition-transform duration-200 ${volumeOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+
+                  {/* Dropdown panel */}
+                  {volumeOpen && (
+                    <div className="absolute z-50 mt-1 w-full rounded-xl border border-[#E8DED5] bg-white shadow-xl overflow-hidden">
+                      {VOLUME_OPTIONS.map((opt, i) => {
+                        const isSelected = formData.estimatedQuantity === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, estimatedQuantity: opt.value }));
+                              setVolumeOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
+                              isSelected
+                                ? "bg-leather text-white font-semibold"
+                                : "text-[#3C2F2A] hover:bg-[#FDF5EE] hover:text-leather"
+                            } ${i !== 0 ? "border-t border-[#F0E8E0]" : ""}`}
+                          >
+                            <span>{opt.label}</span>
+                            {isSelected && <Check size={14} strokeWidth={3} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -232,7 +294,7 @@ export default function Signup() {
                   required
                   value={formData.email}
                   onChange={updateField}
-                  className="w-full rounded-lg border border-[#D7CBC1] px-4 py-3 outline-none"
+                  className={`w-full rounded-lg border px-4 py-3 outline-none transition-colors focus:border-leather focus:ring-1 focus:ring-leather ${formData.email ? "border-leather bg-[#FDF5EE]" : "border-[#D7CBC1] bg-white"}`}
                 />
               </div>
 
@@ -247,7 +309,7 @@ export default function Signup() {
                     required
                     value={formData.password}
                     onChange={updateField}
-                    className="w-full rounded-lg border border-[#D7CBC1] px-4 py-3 outline-none pr-12"
+                    className={`w-full rounded-lg border px-4 py-3 pr-12 outline-none transition-colors focus:border-leather focus:ring-1 focus:ring-leather ${formData.password ? "border-leather bg-[#FDF5EE]" : "border-[#D7CBC1] bg-white"}`}
                   />
                   <button
                     type="button"
@@ -270,23 +332,13 @@ export default function Signup() {
                     required
                     value={formData.contactName}
                     onChange={updateField}
-                    className="w-full rounded-lg border border-[#D7CBC1] px-4 py-3 outline-none"
+                    className={`w-full rounded-lg border px-4 py-3 outline-none transition-colors focus:border-leather focus:ring-1 focus:ring-leather ${formData.contactName ? "border-leather bg-[#FDF5EE]" : "border-[#D7CBC1] bg-white"}`}
                   />
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-[#3C2F2A]">
-                    WhatsApp/Phone *
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    required
-                    value={formData.phone}
-                    onChange={updateField}
-                    placeholder="+234..."
-                    className="w-full rounded-lg border border-[#D7CBC1] px-4 py-3 outline-none"
-                  />
-                </div>
+                <PhoneInput
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                />
               </div>
 
               <div className="rounded-lg border border-[#E8DED5] bg-[#FAFAF8] p-4">
@@ -301,6 +353,8 @@ export default function Signup() {
                     I agree to the{" "}
                     <Link
                       href="/terms-and-conditions"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="font-semibold text-leather hover:underline"
                     >
                       Terms & Conditions
@@ -308,6 +362,8 @@ export default function Signup() {
                     and{" "}
                     <Link
                       href="/privacy-policy"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="font-semibold text-leather hover:underline"
                     >
                       Privacy Policy

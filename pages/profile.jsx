@@ -59,6 +59,7 @@ import Button from "../components/ui/Button";
 import Spinner from "../components/ui/Spinner";
 import { getSession } from "../services/authService";
 import axios from "axios";
+import PhoneInput, { validatePhone, normalizePhone } from "../components/ui/PhoneInput";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -170,9 +171,10 @@ export default function ProfilePage() {
                   onChange={(e) => setContactName(e.target.value)} />
               </div>
               <div>
-                <label className="label">WhatsApp Number</label>
-                <input className="input" value={whatsapp} placeholder="+234..."
-                  onChange={(e) => setWhatsapp(e.target.value)} />
+                <PhoneInput
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                />
               </div>
               <div>
                 <label className="label">Email</label>

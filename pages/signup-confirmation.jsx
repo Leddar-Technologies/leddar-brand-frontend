@@ -25,38 +25,50 @@ export default function SignupConfirmation() {
           </p>
         </div>
 
+        {/* Email verification notice */}
+        <div className="mb-6 rounded-lg border border-[#D4A843] bg-[#FFF8EC] p-4 text-left">
+          <div className="flex items-start gap-3">
+            <Mail className="mt-0.5 h-5 w-5 flex-shrink-0 text-gold" />
+            <div>
+              <p className="mb-1 text-sm font-semibold text-ink">
+                Verify your email address
+              </p>
+              <p className="text-sm text-[#5A4A44]">
+                We've sent a verification link to your email. Please click it to
+                verify your account — you won't be able to log in until your
+                email is verified.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="mb-6 rounded-lg border border-[#E8DED5] bg-[#F4EEE9] p-6">
           <div className="mb-4 flex items-center justify-center gap-3">
             <Clock className="h-5 w-5 text-gold" />
             <span className="font-medium text-ink">What Happens Next?</span>
           </div>
-          <div className="space-y-3 text-sm text-[#5A4A44]">
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-gold" />
+          <div className="space-y-3 text-sm text-[#5A4A44] text-left">
+            <div className="flex items-start gap-3">
+              <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-gold" />
               <span>We review your request within 24–48 hours</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-gold" />
+            <div className="flex items-start gap-3">
+              <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-gold" />
               <span>
                 We match you with verified artisans suited to your needs
               </span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-gold" />
+            <div className="flex items-start gap-3">
+              <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-gold" />
               <span>You'll receive an email once your account is approved</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-gold" />
+            <div className="flex items-start gap-3">
+              <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-gold" />
               <span>
                 Log in after approval to access your production dashboard
               </span>
             </div>
           </div>
-        </div>
-
-        <div className="mb-6 flex items-center justify-center gap-2 text-[#7F7068]">
-          <Mail className="h-4 w-4" />
-          <span className="text-sm">Check your email for updates and next steps</span>
         </div>
 
         <button

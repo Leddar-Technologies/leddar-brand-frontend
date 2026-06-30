@@ -606,7 +606,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   FileUp, X, FlaskConical, CheckCircle2,
   Image as ImageIcon, FileText, Film, ChevronRight,
-  Minus, Plus, Clock, Package, StickyNote,
+  Minus, Plus, Clock, Package, StickyNote, Tag,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { productTypes } from "../../data/mockData";
@@ -618,6 +618,15 @@ import api from "../../services/api";
 const PENDING_QUOTE_INTENT_KEY  = "leddar_pending_quote_intent";
 const PENDING_QUOTE_FILE_IDS_KEY = "leddar_pending_quote_file_ids";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+
+const BRANDING_OPTIONS = [
+  "Brand stamp",
+  "Woven label",
+  "Metal tags",
+  "Printed boxes",
+  "Box stickers",
+];
+const BRANDING_NONE = "I don't need any of these";
 
 const TIMELINES = [
   { value: "1-2 weeks",  label: "1–2 Weeks",  sub: "Urgent",    color: "#B42318" },
@@ -676,10 +685,11 @@ export default function QuoteForm() {
   const router       = useRouter();
   const fileInputRef = useRef(null);
 
-  const [quantity, setQuantity]                 = useState(100);
-  const [productType, setProductType]           = useState(productTypes[0]);
+  const [quantity, setQuantity]                 = useState(0);
+  const [productType, setProductType]           = useState("");
   const [requiredTimeline, setRequiredTimeline] = useState("");
   const [notes, setNotes]                       = useState("");
+  const [brandProvides, setBrandProvides]       = useState([]);
   const [files, setFiles]                       = useState([]);
   const [dragging, setDragging]                 = useState(false);
   const [error, setError]                       = useState("");
@@ -696,21 +706,23 @@ export default function QuoteForm() {
   }, []);
 
   // Price for the currently selected product type
-  const samplePrice = pricingMap[productType] ?? 30000;
+  const samplePrice = productType ? (pricingMap[productType] ?? 30000) : null;
 
-  const canSubmit = Number(quantity) > 0 && files.length > 0 && Boolean(requiredTimeline);
+  const canSubmit = Boolean(productType) && Number(quantity) > 0 && files.length > 0 && Boolean(requiredTimeline);
 
   // ── helpers ────────────────────────────────────────────────────────────────
   function validate() {
-    if (!quantity || Number(quantity) <= 0) { setError("Please enter a valid quantity."); return false; }
-    if (files.length === 0)                  { setError("Please upload at least one product spec file."); return false; }
-    if (!requiredTimeline)                   { setError("Please select a required timeline."); return false; }
+    if (!productType)                         { setError("Please select a product type."); return false; }
+    if (!quantity || Number(quantity) <= 0)   { setError("Please enter a valid quantity."); return false; }
+    if (files.length === 0)                   { setError("Please upload at least one product spec file."); return false; }
+    if (!requiredTimeline)                    { setError("Please select a required timeline."); return false; }
     return true;
   }
 
   function buildIntent() {
     return {
       productType, quantity: Number(quantity), requiredTimeline, notes,
+      brandProvides,
       attachments: files.map((f) => ({ name: f.name, type: f.type })),
       samplePrice,
     };
@@ -740,8 +752,8 @@ export default function QuoteForm() {
       if (!isVideo && !isImage && !isPdf) return;
 
       // Per-type count limits
-      if (isImage && existingImages + addedImages >= 1) {
-        rejected.push(`${f.name} (only 1 image allowed)`);
+      if (isImage && existingImages + addedImages >= 5) {
+        rejected.push(`${f.name} (max 5 images allowed)`);
         return;
       }
       if (isVideo && existingVideos + addedVideos >= 1) {
@@ -809,9 +821,25 @@ export default function QuoteForm() {
       if (intent.quantity)         setQuantity(intent.quantity);
       if (intent.requiredTimeline) setRequiredTimeline(intent.requiredTimeline);
       if (typeof intent.notes === "string") setNotes(intent.notes);
+      if (Array.isArray(intent.brandProvides)) setBrandProvides(intent.brandProvides);
     } catch { /* ignore */ }
     router.replace("/new-order", undefined, { shallow: true });
   }, [router.isReady, router.query.resume]);
+
+  function toggleBrandProvides(option) {
+    if (option === BRANDING_NONE) {
+      // selecting "none" clears everything else and sets only none
+      setBrandProvides([BRANDING_NONE]);
+    } else {
+      setBrandProvides((prev) => {
+        // remove "none" when a real option is picked
+        const without = prev.filter((o) => o !== BRANDING_NONE);
+        return without.includes(option)
+          ? without.filter((o) => o !== option)
+          : [...without, option];
+      });
+    }
+  }
 
   // ── completion signals ──────────────────────────────────────────────────────
   const step1Done = files.length > 0;
@@ -906,7 +934,7 @@ export default function QuoteForm() {
                   {rejectedFiles.length === 1 ? "File too large" : `${rejectedFiles.length} files too large`}
                 </p>
                 <p className="mt-0.5 text-xs text-[#7B6A62]">
-                  Images &amp; PDFs max 10 MB · Videos max 100 MB. <br /> The following {rejectedFiles.length === 1 ? "file was" : "files were"} not added:
+                  Up to 5 images · 1 PDF · 1 video &nbsp;·&nbsp; Images &amp; PDFs max 10 MB · Videos max 100 MB. <br /> The following {rejectedFiles.length === 1 ? "file was" : "files were"} not added:
                 </p>
                 <ul className="mt-2 space-y-1">
                   {rejectedFiles.map((name, i) => (
@@ -964,42 +992,100 @@ export default function QuoteForm() {
               <FileUp className="h-6 w-6 text-gold" />
             </div>
             <p className="text-sm font-semibold text-ink">Drop files here or click to browse</p>
-            <p className="mt-1 text-xs text-[#9B8A82]">1 image · 1 PDF · 1 video &nbsp;·&nbsp; Images &amp; PDFs max 10 MB · Videos max 100 MB</p>
+            <p className="mt-1 text-xs text-[#9B8A82]">Up to 5 images · 1 PDF · 1 video &nbsp;·&nbsp; Images &amp; PDFs max 10 MB · Videos max 100 MB</p>
           </div>
 
           {/* File list */}
-          {files.length > 0 && (
-            <div className="mt-4 space-y-2">
-              {files.map((file, i) => (
-                <div
-                  key={`${file.name}-${i}`}
-                  className="flex items-center gap-3 rounded-lg border border-[#E8DED5] bg-white px-3 py-2.5"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#FAF7F4] border border-[#E8DED5]">
-                    {fileIcon(file)}
+          {files.length > 0 && (() => {
+            const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+            const otherFiles = files.filter((f) => !f.type.startsWith("image/"));
+            return (
+              <div className="mt-4 space-y-3">
+                {/* Image thumbnails grid */}
+                {imageFiles.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-[#7B6A62] uppercase tracking-wide">
+                        Images ({imageFiles.length}/5)
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                      {imageFiles.map((file, i) => {
+                        const globalIdx = files.indexOf(file);
+                        const preview = URL.createObjectURL(file);
+                        return (
+                          <div key={`img-${i}`} className="relative group aspect-square rounded-lg overflow-hidden border border-[#E8DED5] bg-[#FAF7F4]">
+                            <img
+                              src={preview}
+                              alt={file.name}
+                              className="h-full w-full object-cover"
+                              onLoad={() => URL.revokeObjectURL(preview)}
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                            <button
+                              onClick={() => removeFile(globalIdx)}
+                              className="absolute top-1 right-1 rounded-full bg-white/90 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                            >
+                              <X className="h-3 w-3 text-danger" />
+                            </button>
+                            <p className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1.5 py-0.5 text-[9px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                              {file.name}
+                            </p>
+                          </div>
+                        );
+                      })}
+                      {/* Add more slot */}
+                      {imageFiles.length < 5 && (
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="aspect-square rounded-lg border-2 border-dashed border-[#D7CBC1] bg-[#FDFAF7] hover:border-gold hover:bg-[#FFFCF5] transition-all flex flex-col items-center justify-center gap-1 text-[#9B8A82] hover:text-gold"
+                        >
+                          <span className="text-lg leading-none">+</span>
+                          <span className="text-[9px] font-medium">Add</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-ink">{file.name}</p>
-                    {file.size > 0 && (
-                      <p className="text-xs text-[#9B8A82]">{formatBytes(file.size)}</p>
-                    )}
-                  </div>
+                )}
+
+                {/* Non-image files (PDF, video) */}
+                {otherFiles.map((file) => {
+                  const globalIdx = files.indexOf(file);
+                  return (
+                    <div
+                      key={`other-${globalIdx}`}
+                      className="flex items-center gap-3 rounded-lg border border-[#E8DED5] bg-white px-3 py-2.5"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#FAF7F4] border border-[#E8DED5]">
+                        {fileIcon(file)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-ink">{file.name}</p>
+                        {file.size > 0 && (
+                          <p className="text-xs text-[#9B8A82]">{formatBytes(file.size)}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => removeFile(globalIdx)}
+                        className="shrink-0 rounded-full p-1 text-[#9B8A82] hover:bg-[#FFF0EF] hover:text-danger transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {imageFiles.length === 0 && (
                   <button
-                    onClick={() => removeFile(i)}
-                    className="shrink-0 rounded-full p-1 text-[#9B8A82] hover:bg-[#FFF0EF] hover:text-danger transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs font-medium text-[#8B6A39] hover:text-gold transition-colors"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    + Add more files
                   </button>
-                </div>
-              ))}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-1 text-xs font-medium text-[#8B6A39] hover:text-gold transition-colors"
-              >
-                + Add more files
-              </button>
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── Section 2: Product Details ────────────────────────────────── */}
@@ -1046,8 +1132,9 @@ export default function QuoteForm() {
             <div className="flex items-center gap-0 w-fit rounded-lg border border-[#D7CBC1] bg-white overflow-hidden">
               <button
                 type="button"
-                onClick={() => setQuantity((q) => Math.max(1, Number(q) - 10))}
-                className="flex h-11 w-11 items-center justify-center text-[#5A4A44] hover:bg-[#FAF7F4] transition-colors border-r border-[#D7CBC1]"
+                onClick={() => setQuantity((q) => Math.max(0, Number(q) - 10))}
+                disabled={Number(quantity) === 0}
+                className="flex h-11 w-11 items-center justify-center text-[#5A4A44] hover:bg-[#FAF7F4] transition-colors border-r border-[#D7CBC1] disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Minus className="h-4 w-4" />
               </button>
@@ -1066,7 +1153,10 @@ export default function QuoteForm() {
                 <Plus className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-1.5 text-xs text-[#9B8A82]">Minimum order quantity varies by product type</p>
+            {Number(quantity) === 0
+              ? <p className="mt-1.5 text-xs text-[#B42318] font-medium">Enter a quantity to continue</p>
+              : <p className="mt-1.5 text-xs text-[#9B8A82]">How many units do you need produced?</p>
+            }
           </div>
         </div>
 
@@ -1117,8 +1207,79 @@ export default function QuoteForm() {
             className="input min-h-[100px] resize-none"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. Genuine leather, tan colour, gold hardware, embossed logo on front pocket, dimensions 20cm × 12cm..."
+            placeholder="e.g. Genuine leather, tan colour, gold hardware, embossed logo on front pocket, dimensions 20cm × 12cm... Include sizing, colours, other specifications."
           />
+        </div>
+
+        {/* ── Section 5: Branding Materials ────────────────────────────── */}
+        <div className="card p-6">
+          <SectionHeader
+            number="5"
+            icon={Tag}
+            title="Which of these can you provide to us?"
+            subtitle="Select all that apply — leave blank if unsure"
+          />
+
+          <div className="flex flex-wrap gap-2.5">
+            {BRANDING_OPTIONS.map((option) => {
+              const selected = brandProvides.includes(option);
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => toggleBrandProvides(option)}
+                  className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+                    selected
+                      ? "border-gold bg-[#C49A3C15] text-[#8B6A39] shadow-sm"
+                      : "border-[#E4D8CD] bg-white text-[#5A4A44] hover:border-[#C49A3C80] hover:bg-[#FFFCF5]"
+                  }`}
+                >
+                  <span
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                      selected
+                        ? "border-gold bg-gold"
+                        : "border-[#C8B8AE] bg-white"
+                    }`}
+                  >
+                    {selected && (
+                      <svg viewBox="0 0 10 8" className="h-2.5 w-2.5 fill-white">
+                        <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                      </svg>
+                    )}
+                  </span>
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* "None" option — full-width, separated */}
+          <div className="mt-3 pt-3 border-t border-[#EFE6DF]">
+            <button
+              type="button"
+              onClick={() => toggleBrandProvides(BRANDING_NONE)}
+              className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+                brandProvides.includes(BRANDING_NONE)
+                  ? "border-[#9B8A82] bg-[#F5F0ED] text-[#5A4A44] shadow-sm"
+                  : "border-[#E4D8CD] bg-white text-[#9B8A82] hover:border-[#9B8A82] hover:bg-[#F5F0ED]"
+              }`}
+            >
+              <span
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                  brandProvides.includes(BRANDING_NONE)
+                    ? "border-[#7B6A62] bg-[#7B6A62]"
+                    : "border-[#C8B8AE] bg-white"
+                }`}
+              >
+                {brandProvides.includes(BRANDING_NONE) && (
+                  <svg viewBox="0 0 10 8" className="h-2.5 w-2.5 fill-white">
+                    <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  </svg>
+                )}
+              </span>
+              {BRANDING_NONE}
+            </button>
+          </div>
         </div>
 
         {/* ── Error ─────────────────────────────────────────────────────── */}
@@ -1166,7 +1327,7 @@ export default function QuoteForm() {
                   disabled={!canSubmit}
                   className="w-full sm:w-auto"
                 >
-                  {`Request Sample · ${formatNaira(samplePrice)}`}
+                  {samplePrice ? `Request Sample · ${formatNaira(samplePrice)}` : "Request Sample"}
                 </Button>
                 {!canSubmit && (
                   <p className="text-xs text-[#9B8A82]">

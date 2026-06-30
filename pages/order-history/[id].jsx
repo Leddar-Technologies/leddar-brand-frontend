@@ -127,9 +127,18 @@ export default function OrderDetailPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-ink">{productType}</h1>
-              <p className="text-xs text-[#7B6A62] mt-0.5">
-                {order.type} · {order.ref || `#${order.id.slice(0, 8).toUpperCase()}`} · {new Date(order.createdAt).toLocaleDateString("en-NG")}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span className="text-xs text-[#7B6A62]">{order.type} ·</span>
+                <span className="font-mono text-[10px] font-semibold text-[#C49A3C] bg-[#FFF8EA] border border-[#E8D89A] rounded px-1.5 py-0.5">
+                  #{order.ref || order.id.slice(0, 8).toUpperCase()}
+                </span>
+                {order.quote?.ref && (
+                  <span className="font-mono text-[10px] font-semibold text-[#6A5B54] bg-[#F4EFEA] border border-[#E8DED5] rounded px-1.5 py-0.5">
+                    [{order.quote.ref}]
+                  </span>
+                )}
+                <span className="text-xs text-[#7B6A62]">· {new Date(order.createdAt).toLocaleDateString("en-NG")}</span>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -183,13 +192,19 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Sample video */}
-          {sampleVideo && (
+          {/* Sample video — only visible after sample is approved */}
+          {sampleVideo && ["SAMPLE_APPROVED", "BALANCE_PAID", "IN_PRODUCTION", "SHIPPED", "DELIVERED"].includes(order.status) && (
             <div className="card p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-[#A39289] mb-3 flex items-center gap-2">
-                <Video className="h-3.5 w-3.5" /> Sample Video
+                <Video className="h-3.5 w-3.5" /> Approved Sample Video
               </p>
-              <video src={sampleVideo} controls className="w-full rounded-xl bg-black max-h-64" />
+              <video
+                src={sampleVideo}
+                controls
+                controlsList="nodownload"
+                className="w-full rounded-xl bg-black max-h-64"
+                onError={(e) => { e.target.style.display = "none"; }}
+              />
             </div>
           )}
 

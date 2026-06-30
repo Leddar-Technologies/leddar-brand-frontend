@@ -95,12 +95,20 @@ export default function PaymentVerifyPage() {
               Verification Failed
             </p>
             <p className="text-sm text-[#5A4A44]">{message}</p>
-            <button
-              onClick={() => router.push("/sample-requests")}
-              className="mt-2 text-sm font-medium text-[#8B6A39] underline underline-offset-2"
-            >
-              Return to Sample Requests
-            </button>
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                onClick={() => router.push("/new-order")}
+                className="w-full rounded-xl bg-[#C49A3C] py-2.5 text-sm font-semibold text-white hover:bg-[#A8832F] transition-colors"
+              >
+                Start New Order
+              </button>
+              <button
+                onClick={() => router.push("/sample-requests")}
+                className="mt-1 text-sm font-medium text-[#8B6A39] underline underline-offset-2"
+              >
+                Return to Sample Requests
+              </button>
+            </div>
           </div>
         )}
       </div>

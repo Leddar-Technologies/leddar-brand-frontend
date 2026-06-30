@@ -667,8 +667,13 @@ export default function OrderStatusPage() {
             const sampleOrder      = quote.orders?.find((o) => o.type === "SAMPLE");
             const productionOrder  = quote.orders?.find((o) => o.type === "PRODUCTION");
             const sampleCredit     = sampleOrder?.flatFeePaid ?? 0;
-            // Pay Now unlocks when brand has approved the sample (brand approval = SAMPLE_APPROVED, Leddar confirmation = SAMPLE_COMPLETED)
-            const sampleApproved   = ["SAMPLE_APPROVED", "SAMPLE_COMPLETED"].includes(sampleOrder?.status);
+            // Pay Now unlocks when brand has approved the sample.
+            // approveSample sets the JOB status to SAMPLE_APPROVED — the order status stays IN_PROGRESS.
+            // Check job status first, fall back to order status.
+            const sampleJobStatus  = sampleOrder?.jobs?.[0]?.status;
+            const sampleApproved   =
+              ["SAMPLE_APPROVED", "SAMPLE_COMPLETED"].includes(sampleJobStatus) ||
+              ["SAMPLE_APPROVED", "SAMPLE_COMPLETED"].includes(sampleOrder?.status);
             const sampleVideoUrl   = sampleOrder?.jobs?.[0]?.video?.url || null;
             const balanceDue       = Math.max(0, total - sampleCredit);
             // isPaid: production payment confirmed by Paystack.
@@ -698,24 +703,6 @@ export default function OrderStatusPage() {
                   </span>
                 </div>
 
-                {/* Sample video — shown once admin forwards it to the brand */}
-                {sampleVideoUrl && (
-                  <div className="mt-4 rounded-xl border border-[#E6D7CB] bg-[#FFF8EF] p-4">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6A39]">
-                      Sample Video — Ready for Review
-                    </p>
-                    <video
-                      src={sampleVideoUrl}
-                      controls
-                      className="w-full rounded-lg max-h-72 bg-black"
-                      preload="metadata"
-                    />
-                    <p className="mt-2 text-xs text-[#7B6A62]">
-                      Watch the sample your artisan produced. Use the buttons below to approve or request changes.
-                    </p>
-                  </div>
-                )}
-
                 {hasPrice ? (
                   <div className="mt-4 grid gap-2 rounded-xl border border-[#E6D7CB] bg-[#FFF8EF] p-4 text-sm sm:grid-cols-2">
                     <div>
@@ -732,10 +719,6 @@ export default function OrderStatusPage() {
                         <p className="mt-0.5 font-semibold text-ink">{quote.moq} units</p>
                       </div>
                     ) : null}
-                    <div className="sm:col-span-2 flex items-center justify-between text-sm">
-                      <span className="text-[#8B6A39]">VAT (7.5%)</span>
-                      <span className="text-[#8B6A39]">+ {formatNaira(vatAmount)}</span>
-                    </div>
                     <div className="border-t border-[#E6D7CB] pt-2 sm:col-span-2">
                       <p className="text-xs uppercase tracking-[0.12em] text-[#8B6A39]">Total Payable (incl. VAT)</p>
                       <p className="mt-0.5 text-base font-bold text-ink">{formatNaira(total)}</p>
@@ -831,7 +814,7 @@ export default function OrderStatusPage() {
                 <p className="mt-1 font-semibold text-ink">{formatNaira(payDetails.balanceDue)}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">VAT</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">VAT (7.5%)</p>
                 <p className="mt-1 font-semibold text-ink">{formatNaira(payDetails.vatAmount)}</p>
               </div>
               <div>

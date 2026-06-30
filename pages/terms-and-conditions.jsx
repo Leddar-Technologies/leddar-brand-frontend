@@ -750,7 +750,7 @@ export default function TermsAndConditions() {
                   <ChevronLeft className="h-4 w-4" />
                   Back to Signup
                 </Link>
-                <Link href="/privacy-policy" className="text-sm text-leather underline hover:text-[#5A2F22] transition-colors">
+                <Link href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-sm text-leather underline hover:text-[#5A2F22] transition-colors">
                   ← View Privacy Policy
                 </Link>
               </div>

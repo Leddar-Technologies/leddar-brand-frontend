@@ -292,10 +292,6 @@ export default function KycPage() {
                     value={lastName} onChange={(e) => setLast(e.target.value)} />
                 </div>
               </div>
-              <div>
-                <label className="label text-xs">Date of Birth <span className="text-[#9B8A82]">(optional)</span></label>
-                <input type="date" className="input" value={dob} onChange={(e) => setDob(e.target.value)} />
-              </div>
               {stepError && <ErrorBox msg={stepError} />}
               <Button type="submit" variant="accent" className="w-full" disabled={submitting}>
                 {submitting
@@ -324,10 +320,11 @@ export default function KycPage() {
               </div>
               {stepError && <ErrorBox msg={stepError} />}
               <div className="flex gap-3">
-                <Button type="button" variant="outline" className="flex-1"
-                  onClick={() => { setStep(1); setStepError(""); }}>
+                <button type="button"
+                  onClick={() => { setStep(1); setStepError(""); }}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-800">
                   <ChevronLeft className="h-4 w-4" /> Back
-                </Button>
+                </button>
                 <Button type="submit" variant="accent" className="flex-1" disabled={submitting}>
                   {submitting
                     ? <LoadingText text="Verifying with CAC..." />
@@ -359,10 +356,11 @@ export default function KycPage() {
               </div>
               {stepError && <ErrorBox msg={stepError} />}
               <div className="flex gap-3">
-                <Button type="button" variant="outline" className="flex-1"
-                  onClick={() => { setStep(2); setStepError(""); }}>
+                <button type="button"
+                  onClick={() => { setStep(2); setStepError(""); }}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-800">
                   <ChevronLeft className="h-4 w-4" /> Back
-                </Button>
+                </button>
                 <Button type="submit" variant="accent" className="flex-1" disabled={submitting}>
                   {submitting
                     ? <LoadingText text="Saving..." />
