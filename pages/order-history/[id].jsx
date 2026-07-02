@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import PageWrapper from "../../components/layout/PageWrapper";
 import Spinner from "../../components/ui/Spinner";
+import BrandingBadges from "../../components/ui/BrandingBadges";
 import { getBrandOrderById } from "../../services/paymentService";
 import { getSession } from "../../services/authService";
 import { formatNaira } from "../../utils/pricing";
@@ -190,6 +191,12 @@ export default function OrderDetailPage() {
                 <p className="mt-0.5 font-semibold text-ink capitalize">{order.type?.toLowerCase()}</p>
               </div>
             </div>
+            {order.quote?.brandProvides?.some((i) => i !== "I don't need any of these") && (
+              <div className="mt-3 pt-3 border-t border-[#F0E9E2]">
+                <p className="text-xs text-[#9B8A82] uppercase tracking-wide mb-1.5">Branding Requested</p>
+                <BrandingBadges items={order.quote.brandProvides} />
+              </div>
+            )}
           </div>
 
           {/* Sample video — only visible after sample is approved */}

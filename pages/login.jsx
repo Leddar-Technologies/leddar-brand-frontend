@@ -5,7 +5,9 @@ import { useRouter } from "next/router";
 import { Eye, EyeOff, Lock, Mail, CheckCircle2 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Spinner from "../components/ui/Spinner";
-import { getSession, login } from "../services/authService";
+import { getSession, login, resendVerification } from "../services/authService";
+
+const RESEND_COOLDOWN_SECONDS = 10 * 60;
 
 export default function Login() {
   const router = useRouter();
@@ -14,6 +16,31 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [error, setError] = useState("");
+  const [resendStatus, setResendStatus] = useState("idle"); // idle | sending | sent
+  const [resendMessage, setResendMessage] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const isUnverifiedError = /verify your email/i.test(error);
+
+  async function handleResend() {
+    setResendStatus("sending");
+    setResendMessage("");
+    try {
+      const message = await resendVerification(email);
+      setResendMessage(message);
+      setResendStatus("sent");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      setResendMessage(err.message || "Failed to resend verification email.");
+      setResendStatus("idle");
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -125,6 +152,28 @@ export default function Login() {
             {status === "error" && (
               <div className="bg-red-50 border border-red-100 text-[#B42318] text-sm p-3 rounded-lg text-center font-medium animate-shake">
                 {error}
+                {isUnverifiedError && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resendStatus === "sending" || cooldown > 0}
+                      className="text-xs font-bold text-leather underline hover:text-gold transition disabled:opacity-50 disabled:no-underline"
+                    >
+                      {cooldown > 0
+                        ? `Resend available in ${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}`
+                        : resendStatus === "sending"
+                        ? "Sending..."
+                        : "Resend verification email"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {resendMessage && (
+              <div className="bg-atmosphere border border-[#E8DED5] text-[#3C2F2A] text-xs p-2.5 rounded-lg text-center font-medium">
+                {resendMessage}
               </div>
             )}
 

@@ -66,6 +66,7 @@ export default function Signup() {
           query: {
             contactName: formData.contactName,
             businessName: formData.businessName,
+            email: formData.email,
           },
         });
         dispatch(resetState());

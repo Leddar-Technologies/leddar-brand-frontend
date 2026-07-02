@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import PageWrapper from "../components/layout/PageWrapper";
 import Spinner from "../components/ui/Spinner";
+import BrandingBadges from "../components/ui/BrandingBadges";
 import {
   getBrandOrders,
   approveSample,
@@ -381,6 +382,7 @@ function SampleOrderCard({ order, linkedProduction, onRefresh }) {
                 </span>
               )}
             </div>
+            <BrandingBadges items={order.quote?.brandProvides} className="mt-1.5" />
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -665,6 +667,7 @@ function ProductionOrderCard({ order, onRefresh }) {
                 </span>
               )}
             </div>
+            <BrandingBadges items={order.quote?.brandProvides} className="mt-1.5" />
           </div>
         </div>
         <div className="flex items-center gap-2">

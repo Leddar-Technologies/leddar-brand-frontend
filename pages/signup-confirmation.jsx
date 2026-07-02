@@ -1,5 +1,9 @@
 import { useRouter } from "next/router";
+import { useState, useEffect } from "react";
 import { CheckCircle, Clock, Mail } from "lucide-react";
+import { resendVerification } from "../services/authService";
+
+const RESEND_COOLDOWN_SECONDS = 10 * 60;
 
 export default function SignupConfirmation() {
   const router = useRouter();
@@ -7,6 +11,32 @@ export default function SignupConfirmation() {
     typeof router.query.contactName === "string" && router.query.contactName
       ? router.query.contactName
       : "Partner";
+  const email =
+    typeof router.query.email === "string" ? router.query.email : "";
+
+  const [resendStatus, setResendStatus] = useState("idle"); // idle | sending
+  const [resendMessage, setResendMessage] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  async function handleResend() {
+    setResendStatus("sending");
+    setResendMessage("");
+    try {
+      const message = await resendVerification(email);
+      setResendMessage(message);
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      setResendMessage(err.message || "Failed to resend verification email.");
+    } finally {
+      setResendStatus("idle");
+    }
+  }
 
   return (
     <div className="bg-atmosphere flex min-h-screen items-center justify-center px-4 py-8">
@@ -38,6 +68,25 @@ export default function SignupConfirmation() {
                 verify your account — you won't be able to log in until your
                 email is verified.
               </p>
+              {email && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendStatus === "sending" || cooldown > 0}
+                    className="text-xs font-bold text-leather underline hover:text-gold transition disabled:opacity-50 disabled:no-underline"
+                  >
+                    {cooldown > 0
+                      ? `Resend available in ${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}`
+                      : resendStatus === "sending"
+                      ? "Sending..."
+                      : "Didn't get it? Resend verification email"}
+                  </button>
+                  {resendMessage && (
+                    <p className="mt-1 text-xs text-[#5A4A44]">{resendMessage}</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
