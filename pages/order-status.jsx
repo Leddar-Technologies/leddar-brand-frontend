@@ -550,6 +550,7 @@ import PageWrapper from "../components/layout/PageWrapper";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import Spinner from "../components/ui/Spinner";
+import BrandingBadges from "../components/ui/BrandingBadges";
 import { getSession, getKycStatus } from "../services/authService";
 import {
   getBrandQuotes,
@@ -697,6 +698,7 @@ export default function OrderStatusPage() {
                     <p className="mt-0.5 font-mono text-[10px] font-bold text-[#A39289] tracking-wide">
                       {quote.ref || `#${quote.id?.slice(0, 8).toUpperCase()}`}
                     </p>
+                    <BrandingBadges items={quote.brandProvides} className="mt-1.5" />
                   </div>
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge.cls}`}>
                     {badge.label}

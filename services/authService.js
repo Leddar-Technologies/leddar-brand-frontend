@@ -116,6 +116,22 @@ export async function login({ email, password, role }) {
 }
 
 // ---------------------------------------------------------------------------
+// Resend verification email
+// ---------------------------------------------------------------------------
+
+export async function resendVerification(email) {
+  const response = await fetch(`${API_URL}/auth/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || result.message || "Failed to resend verification email");
+  return result.message;
+}
+
+// ---------------------------------------------------------------------------
 // Refresh token
 // ---------------------------------------------------------------------------
 

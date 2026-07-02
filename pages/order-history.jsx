@@ -81,6 +81,7 @@ import Link from "next/link";
 import { ChevronRight, Package, FlaskConical } from "lucide-react";
 import PageWrapper from "../components/layout/PageWrapper";
 import Spinner from "../components/ui/Spinner";
+import BrandingBadges from "../components/ui/BrandingBadges";
 import { getBrandOrders } from "../services/paymentService";
 import { formatNaira } from "../utils/pricing";
 
@@ -147,6 +148,7 @@ function OrderCard({ order }) {
             {order.totalAmount ? (
               <p className="mt-0.5 text-xs font-medium text-[#5A4A44]">{formatNaira(order.totalAmount)}</p>
             ) : null}
+            <BrandingBadges items={order.quote?.brandProvides} className="mt-1" />
           </div>
         </div>
 
