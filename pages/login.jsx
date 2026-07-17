@@ -7,7 +7,9 @@ import Button from "../components/ui/Button";
 import Spinner from "../components/ui/Spinner";
 import { getSession, login, resendVerification } from "../services/authService";
 
-const RESEND_COOLDOWN_SECONDS = 10 * 60;
+// Matches the verification link's own 1-hour expiry (server: auth.service.js) —
+// no point letting the user request a new one before the current one has expired.
+const RESEND_COOLDOWN_SECONDS = 60 * 60;
 
 export default function Login() {
   const router = useRouter();

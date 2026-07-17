@@ -3,7 +3,9 @@ import { useState, useEffect } from "react";
 import { CheckCircle, Clock, Mail } from "lucide-react";
 import { resendVerification } from "../services/authService";
 
-const RESEND_COOLDOWN_SECONDS = 10 * 60;
+// Matches the verification link's own 1-hour expiry (server: auth.service.js) —
+// no point letting the user request a new one before the current one has expired.
+const RESEND_COOLDOWN_SECONDS = 60 * 60;
 
 export default function SignupConfirmation() {
   const router = useRouter();

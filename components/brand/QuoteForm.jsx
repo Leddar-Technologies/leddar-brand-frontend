@@ -606,7 +606,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   FileUp, X, FlaskConical, CheckCircle2,
   Image as ImageIcon, FileText, Film, ChevronRight,
-  Minus, Plus, Clock, Package, StickyNote, Tag,
+  Minus, Plus, Clock, Package, StickyNote, Tag, Info,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { productTypes } from "../../data/mockData";
@@ -1192,6 +1192,15 @@ export default function QuoteForm() {
                 )}
               </button>
             ))}
+          </div>
+
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-[#E4D8CD] bg-[#FDFAF7] px-4 py-3">
+            <Info className="h-4 w-4 shrink-0 text-gold mt-0.5" />
+            <p className="text-xs text-[#6B5D53] leading-relaxed">
+              This is the target once bulk production actually begins. The clock starts
+              after you've approved the sample <strong>and</strong> paid the production
+              quote — not from when you place this order.
+            </p>
           </div>
         </div>
 

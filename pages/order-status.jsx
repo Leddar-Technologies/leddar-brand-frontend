@@ -663,8 +663,6 @@ export default function OrderStatusPage() {
               ? { label: "Quote Ready", cls: "bg-[#FFF3E0] text-[#B45309]" }
               : STATUS_BADGE[quote.status] || STATUS_BADGE.SUBMITTED;
             const subtotal     = hasPrice ? quote.price : 0;  // pre-VAT (materials + labour + commission)
-            const vatAmount    = Math.round(subtotal * 0.075);
-            const total        = subtotal + vatAmount;         // VAT-inclusive amount brand actually pays
             const sampleOrder      = quote.orders?.find((o) => o.type === "SAMPLE");
             const productionOrder  = quote.orders?.find((o) => o.type === "PRODUCTION");
             const sampleCredit     = sampleOrder?.flatFeePaid ?? 0;
@@ -676,7 +674,12 @@ export default function OrderStatusPage() {
               ["SAMPLE_APPROVED", "SAMPLE_COMPLETED"].includes(sampleJobStatus) ||
               ["SAMPLE_APPROVED", "SAMPLE_COMPLETED"].includes(sampleOrder?.status);
             const sampleVideoUrl   = sampleOrder?.jobs?.[0]?.video?.url || null;
-            const balanceDue       = Math.max(0, total - sampleCredit);
+            // VAT applies to what's actually being charged now — the quote price minus any
+            // sample credit already paid — not to the full quote price. Mirrors the backend
+            // calc in initializeProductionPayment (payments.controller.js).
+            const preVatBalance    = Math.max(0, subtotal - sampleCredit);
+            const vatAmount        = Math.round(preVatBalance * 0.075);
+            const balanceDue       = preVatBalance + vatAmount;
             // isPaid: production payment confirmed by Paystack.
             // quote.status === "APPROVED" is the ONLY reliable signal — set exclusively by the webhook.
             // Do NOT use productionOrder.status === "IN_PRODUCTION": that status can be set
@@ -722,8 +725,12 @@ export default function OrderStatusPage() {
                       </div>
                     ) : null}
                     <div className="border-t border-[#E6D7CB] pt-2 sm:col-span-2">
-                      <p className="text-xs uppercase tracking-[0.12em] text-[#8B6A39]">Total Payable (incl. VAT)</p>
-                      <p className="mt-0.5 text-base font-bold text-ink">{formatNaira(total)}</p>
+                      <p className="text-xs uppercase tracking-[0.12em] text-[#8B6A39]">
+                        {sampleCredit > 0 ? "Quote Price" : "Total Payable (incl. VAT)"}
+                      </p>
+                      <p className="mt-0.5 text-base font-bold text-ink">
+                        {formatNaira(sampleCredit > 0 ? subtotal : balanceDue)}
+                      </p>
                     </div>
                     {sampleCredit > 0 ? (
                       <>
@@ -731,12 +738,21 @@ export default function OrderStatusPage() {
                           <span className="text-[#2D6A4F] font-medium">Sample Credit Applied</span>
                           <span className="text-[#2D6A4F] font-semibold">− {formatNaira(sampleCredit)}</span>
                         </div>
+                        <div className="sm:col-span-2 flex items-center justify-between text-sm">
+                          <span className="text-[#8B6A39]">VAT (7.5%)</span>
+                          <span className="font-semibold text-ink">{formatNaira(vatAmount)}</span>
+                        </div>
                         <div className="border-t border-[#E6D7CB] pt-2 sm:col-span-2">
-                          <p className="text-xs uppercase tracking-[0.12em] text-[#8B6A39]">Balance Due</p>
+                          <p className="text-xs uppercase tracking-[0.12em] text-[#8B6A39]">Balance Due (incl. VAT)</p>
                           <p className="mt-0.5 text-base font-bold text-ink">{formatNaira(balanceDue)}</p>
                         </div>
                       </>
-                    ) : null}
+                    ) : (
+                      <div className="sm:col-span-2 flex items-center justify-between text-sm">
+                        <span className="text-[#8B6A39]">VAT (7.5%)</span>
+                        <span className="font-semibold text-ink">{formatNaira(vatAmount)}</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-4 rounded-xl border border-[#E6D7CB] bg-white p-4 text-sm text-[#7B6A62]">

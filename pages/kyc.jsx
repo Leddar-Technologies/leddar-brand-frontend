@@ -23,6 +23,13 @@ const NG_STATES = [
   "Taraba","Yobe","Zamfara",
 ];
 
+// CAC registration number prefixes — must match the QoreID cac-basic format (RC1234, BN1234, IT1234)
+const CAC_TYPES = [
+  { code: "RC", label: "Limited Company",       desc: "For registered companies (Ltd, PLC, etc.)" },
+  { code: "BN", label: "Business Name",         desc: "For sole proprietorships / enterprises" },
+  { code: "IT", label: "Incorporated Trustees", desc: "For NGOs, associations, foundations" },
+];
+
 const STEPS = [
   { id: 1, label: "Personal ID (NIN)", icon: Fingerprint  },
   { id: 2, label: "Business (CAC)",    icon: Building2    },
@@ -52,7 +59,8 @@ export default function KycPage() {
   const [dob,       setDob]     = useState("");
 
   // Step 2 — CAC
-  const [rcNumber,     setRcNumber]     = useState("");
+  const [businessType,    setBusinessType]    = useState("");   // "RC" | "BN" | "IT"
+  const [regNumberDigits, setRegNumberDigits]  = useState("");  // just the digits, prefix added on submit
   const [companyName,  setCompanyName]  = useState("");
 
   // Step 3 — Business Profile
@@ -84,7 +92,7 @@ export default function KycPage() {
     setStep(getResumeStep());
     setStepError("");
     setNin(""); setFirst(""); setLast(""); setDob("");
-    setRcNumber(""); setCompanyName("");
+    setBusinessType(""); setRegNumberDigits(""); setCompanyName("");
     setState(""); setWorkAddress("");
     setModalOpen(true);
   }
@@ -119,9 +127,12 @@ export default function KycPage() {
   async function handleStep2(e) {
     e.preventDefault();
     setStepError("");
+    if (!businessType) { setStepError("Please select your business type."); return; }
+    if (!regNumberDigits.trim()) { setStepError("Please enter your registration number."); return; }
     setSubmitting(true);
     try {
-      const cacStatus = await verifyCAC({ rcNumber: rcNumber.trim(), companyName: companyName.trim() });
+      const rcNumber = `${businessType}${regNumberDigits.trim()}`;
+      const cacStatus = await verifyCAC({ rcNumber, companyName: companyName.trim() });
       setKycProfile((p) => ({ ...p, cacStatus }));
       if (cacStatus === "verified") {
         setStep(3);
@@ -309,9 +320,44 @@ export default function KycPage() {
                 Verify your business registration with the Corporate Affairs Commission (CAC).
               </p>
               <div>
-                <label className="label text-xs">RC / BN Number <span className="text-red-500">*</span></label>
-                <input className="input" required placeholder="e.g. RC123456 or BN123456"
-                  value={rcNumber} onChange={(e) => setRcNumber(e.target.value)} />
+                <label className="label text-xs">Business Type <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-3 gap-2">
+                  {CAC_TYPES.map((t) => (
+                    <button key={t.code} type="button"
+                      onClick={() => setBusinessType(t.code)}
+                      className={`rounded-lg border px-2 py-2.5 text-center transition ${
+                        businessType === t.code
+                          ? "border-leather bg-[#FFF8EA] text-ink"
+                          : "border-[#D7CBC1] bg-white text-[#5A4A44] hover:border-[#C49A3C]"
+                      }`}>
+                      <span className="block text-sm font-bold">{t.code}</span>
+                      <span className="block text-[10px] leading-tight mt-0.5">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {businessType && (
+                  <p className="mt-1.5 text-xs text-[#8A7A72]">
+                    {CAC_TYPES.find((t) => t.code === businessType)?.desc}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="label text-xs">Registration Number <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  {businessType && (
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#8A7A72]">
+                      {businessType}
+                    </span>
+                  )}
+                  <input className="input" required disabled={!businessType}
+                    style={businessType ? { paddingLeft: "2.75rem" } : undefined}
+                    placeholder={businessType ? "123456" : "Select a business type above first"}
+                    value={regNumberDigits}
+                    onChange={(e) => setRegNumberDigits(e.target.value.replace(/[^0-9]/g, ""))} />
+                </div>
+                <p className="mt-1.5 text-xs text-[#8A7A72]">
+                  We'll add the <span className="font-semibold">{businessType || "RC/BN/IT"}</span> prefix for you — just type the numbers.
+                </p>
               </div>
               <div>
                 <label className="label text-xs">Registered Company Name <span className="text-red-500">*</span></label>
@@ -325,7 +371,7 @@ export default function KycPage() {
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-800">
                   <ChevronLeft className="h-4 w-4" /> Back
                 </button>
-                <Button type="submit" variant="accent" className="flex-1" disabled={submitting}>
+                <Button type="submit" variant="accent" className="flex-1" disabled={submitting || !businessType}>
                   {submitting
                     ? <LoadingText text="Verifying with CAC..." />
                     : <span className="flex items-center justify-center gap-2">Verify Business <ChevronRight className="h-4 w-4" /></span>

@@ -187,6 +187,16 @@ export default function InvoicesPage() {
             const productType = productTypes.join(", ") || "Leather Product";
             const invoiceUrl = `${API_URL}/brands/orders/${order.id}/invoice`;
 
+            // order.totalAmount is the raw pre-VAT/pre-credit quote price snapshotted at
+            // order creation — not what the brand was actually charged. Show the real
+            // amount from the Payment record (VAT-inclusive, net of any sample credit)
+            // when one exists; fall back to totalAmount only for unpaid orders.
+            const chargeStage   = order.type === "SAMPLE" ? "SAMPLE_FLAT_FEE" : "FULL_PAYMENT";
+            const chargePayment = order.payments?.find(
+              (p) => p.stage === chargeStage && ["RECEIVED", "HELD_IN_ESCROW", "RELEASED"].includes(p.status),
+            );
+            const displayAmount = chargePayment?.amount ?? order.totalAmount;
+
             return (
               <div
                 key={order._isLegacyProduction ? `${order.id}-production` : order.id}
@@ -197,7 +207,7 @@ export default function InvoicesPage() {
                   <p className="mt-0.5 text-xs text-[#7B6A62]">
                     {order.type} · {new Date(order.createdAt).toLocaleDateString("en-NG")}
                   </p>
-                  <p className="mt-0.5 text-xs font-medium text-ink">{formatNaira(order.totalAmount)}</p>
+                  <p className="mt-0.5 text-xs font-medium text-ink">{formatNaira(displayAmount)}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
