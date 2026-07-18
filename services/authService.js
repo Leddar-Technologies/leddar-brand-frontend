@@ -1,4 +1,4 @@
-import axios from "axios";
+import api from "./api";
 
 const SESSION_KEY      = "leddar_session";
 const LAST_BRAND_KEY   = "leddar_last_brand_name";
@@ -60,6 +60,15 @@ function tokenSecondsLeft(token) {
 // ---------------------------------------------------------------------------
 // Session
 // ---------------------------------------------------------------------------
+
+// Merges new tokens into the existing session without disturbing the other
+// fields (email, kycStatus, etc). Used by api.js's response interceptor after
+// a reactive refresh.
+export function updateSessionTokens(token, refreshToken) {
+  const session = getSession();
+  if (!session) return;
+  writeSession({ ...session, token, refreshToken });
+}
 
 export function getSession() {
   if (typeof window === "undefined") return null;
@@ -242,27 +251,22 @@ export function retryKycVerification() {
 }
 
 export const verifyKycIdentity = async (formPayload) => {
-  const session = getSession();
   const { idType, idNumber, firstName, lastName, dob, companyName } = formPayload;
 
-  const response = await fetch(`${API_URL}/brands/verify-kyc`, {
-    method:  "POST",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${session?.token}`,
-    },
-    body: JSON.stringify({
+  let result;
+  try {
+    const response = await api.post("/brands/verify-kyc", {
       idType,
       idNumber,
       firstname:   firstName,
       lastname:    lastName,
       dob,
       companyName,
-    }),
-  });
-
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.message || "Verification failed.");
+    });
+    result = response.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.message || "Verification failed.");
+  }
 
   // Map backend status to frontend status key
   const statusMap = { VERIFIED: "verified", FAILED: "rejected", PENDING: "pending_review" };
@@ -284,13 +288,9 @@ export const getKycStatus = async () => {
   if (!session?.token) return readKycProfile();
 
   try {
-    const response = await fetch(`${API_URL}/brands/kyc/status`, {
-      headers: { Authorization: `Bearer ${session.token}` },
-    });
-    if (!response.ok) return readKycProfile();
-
-    const result  = await response.json();
-    const profile = {
+    const response = await api.get("/brands/kyc/status");
+    const result   = response.data;
+    const profile  = {
       status:     result.data?.status     || "not_started",
       ninStatus:  result.data?.ninStatus  || "not_started",
       cacStatus:  result.data?.cacStatus  || "not_started",
@@ -306,77 +306,55 @@ export const getKycStatus = async () => {
 
 // Step 1 — verify NIN
 export const verifyNIN = async ({ nin, firstName, lastName, dob }) => {
-  const session = getSession();
-  const response = await fetch(`${API_URL}/brands/kyc/verify-nin`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.token}` },
-    body:    JSON.stringify({ nin, firstName, lastName, dob }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.message || "NIN verification failed.");
-  return result.data?.ninStatus === "VERIFIED" ? "verified" : "rejected";
+  try {
+    const response = await api.post("/brands/kyc/verify-nin", { nin, firstName, lastName, dob });
+    return response.data.data?.ninStatus === "VERIFIED" ? "verified" : "rejected";
+  } catch (err) {
+    throw new Error(err.response?.data?.message || "NIN verification failed.");
+  }
 };
 
 // Step 2 — verify CAC
 export const verifyCAC = async ({ rcNumber, companyName }) => {
-  const session = getSession();
-  const response = await fetch(`${API_URL}/brands/kyc/verify-cac`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.token}` },
-    body:    JSON.stringify({ rcNumber, companyName }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.message || "CAC verification failed.");
-  return result.data?.cacStatus === "VERIFIED" ? "verified" : "rejected";
+  try {
+    const response = await api.post("/brands/kyc/verify-cac", { rcNumber, companyName });
+    return response.data.data?.cacStatus === "VERIFIED" ? "verified" : "rejected";
+  } catch (err) {
+    throw new Error(err.response?.data?.message || "CAC verification failed.");
+  }
 };
 
 // ---------------------------------------------------------------------------
 // Brand profile (state + work address)
 // ---------------------------------------------------------------------------
 export const saveBrandProfile = async ({ state, workAddress }) => {
-  const session = getSession();
-  const response = await fetch(`${API_URL}/brands/profile`, {
-    method:  "PATCH",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${session?.token}`,
-    },
-    body: JSON.stringify({ state, workAddress }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.message || "Failed to save profile.");
-  return result.data;
+  try {
+    const response = await api.patch("/brands/profile", { state, workAddress });
+    return response.data.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.message || "Failed to save profile.");
+  }
 };
 
 // ---------------------------------------------------------------------------
 // Brand bank details
 // ---------------------------------------------------------------------------
 export const saveBrandBankDetails = async ({ bankName, bankCode, accountName, accountNumber }) => {
-  const session = getSession();
-  const response = await fetch(`${API_URL}/brands/bank-details`, {
-    method:  "PUT",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${session?.token}`,
-    },
-    body: JSON.stringify({ bankName, bankCode, accountName, accountNumber }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.message || "Failed to save bank details.");
-  return result.data;
+  try {
+    const response = await api.put("/brands/bank-details", { bankName, bankCode, accountName, accountNumber });
+    return response.data.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.message || "Failed to save bank details.");
+  }
 };
 
 // ---------------------------------------------------------------------------
 // Fetch Paystack bank list
 // ---------------------------------------------------------------------------
 export const fetchBanks = async () => {
-  const session = getSession();
   try {
-    const response = await fetch(`${API_URL}/brands/banks`, {
-      headers: { Authorization: `Bearer ${session?.token}` },
-    });
-    const result = await response.json();
-    return result.data || [];
+    const response = await api.get("/brands/banks");
+    return response.data.data || [];
   } catch {
     return [];
   }
