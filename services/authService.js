@@ -5,7 +5,7 @@ const LAST_BRAND_KEY   = "leddar_last_brand_name";
 const KYC_PROFILE_KEY  = "leddar_kyc_profile";
 const DEFAULT_KYC_STATUS = "not_started";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.myleddar.com/api/v1";
 
 // ---------------------------------------------------------------------------
 // Helpers

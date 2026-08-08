@@ -5,7 +5,7 @@ import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import axios from "axios";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "https://api.myleddar.com/api/v1";
 const SAMPLE_ORDER_ID_KEY = "leddar_sample_order_id";
 
 export default function PaymentVerifyPage() {

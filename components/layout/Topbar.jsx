@@ -4,7 +4,7 @@ import { Bell, X, CheckCheck } from "lucide-react";
 import { getSession, logout } from "../../services/authService";
 import Button from "../ui/Button";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.myleddar.com/api/v1";
 
 function authHeaders() {
   const session = getSession();

@@ -304,7 +304,7 @@ function SamplePaymentView() {
         setPaymentStage("uploading");
         const formData = new FormData();
         pendingFiles.forEach((f) => formData.append("files", f));
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.myleddar.com/api/v1";
 
         // 5-minute timeout — large videos can be slow to upload
         const controller = new AbortController();
@@ -768,6 +768,10 @@ function SamplePaymentView() {
                 <p className="mt-1 font-semibold text-ink">{formatNaira(paymentDetails.vatAmount ?? getSamplePayment().vatAmount)}</p>
               </div>
               <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">Paystack Charges</p>
+                <p className="mt-1 font-semibold text-ink">{formatNaira(paymentDetails.paystackFee ?? getSamplePayment().paystackFee)}</p>
+              </div>
+              <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">Total Payable</p>
                 <p className="mt-1 font-semibold text-ink">{formatNaira(paymentDetails.totalAmount ?? getSamplePayment().totalAmount)}</p>
               </div>
@@ -857,6 +861,10 @@ function SamplePaymentView() {
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">{VAT_LABEL}</p>
                 <p className="mt-1 font-semibold text-ink">{formatNaira(productionDetails.vatAmount)}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">Paystack Charges</p>
+                <p className="mt-1 font-semibold text-ink">{formatNaira(productionDetails.paystackFee)}</p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-[#8B6A39]">Total Payable</p>

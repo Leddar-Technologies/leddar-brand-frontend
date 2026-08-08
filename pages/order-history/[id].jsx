@@ -13,7 +13,7 @@ import { getBrandOrderById } from "../../services/paymentService";
 import { getSession } from "../../services/authService";
 import { formatNaira } from "../../utils/pricing";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.myleddar.com/api/v1";
 
 const STATUS_COLORS = {
   SUBMITTED:          "bg-[#F0EDE8] text-[#6D5A51]",

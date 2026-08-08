@@ -617,7 +617,7 @@ import api from "../../services/api";
 
 const PENDING_QUOTE_INTENT_KEY  = "leddar_pending_quote_intent";
 const PENDING_QUOTE_FILE_IDS_KEY = "leddar_pending_quote_file_ids";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.myleddar.com/api/v1";
 
 const BRANDING_OPTIONS = [
   "Brand stamp",

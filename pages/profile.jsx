@@ -61,7 +61,7 @@ import { getSession } from "../services/authService";
 import axios from "axios";
 import PhoneInput, { validatePhone, normalizePhone } from "../components/ui/PhoneInput";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.myleddar.com/api/v1";
 
 function authHeaders() {
   const session = getSession();

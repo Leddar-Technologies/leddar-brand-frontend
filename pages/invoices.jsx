@@ -94,9 +94,9 @@ import PageWrapper from "../components/layout/PageWrapper";
 import Spinner from "../components/ui/Spinner";
 import { getBrandPayments, getBrandOrders } from "../services/paymentService";
 import { getSession } from "../services/authService";
-import { formatNaira } from "../utils/pricing";
+import { formatNaira, calculatePaystackFee } from "../utils/pricing";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.myleddar.com/api/v1";
 
 // Fetch PDF with auth token then trigger browser download
 async function downloadInvoicePdf(orderId, fallbackFilename, isLegacyProduction = false) {
@@ -196,6 +196,9 @@ export default function InvoicesPage() {
               (p) => p.stage === chargeStage && ["RECEIVED", "HELD_IN_ESCROW", "RELEASED"].includes(p.status),
             );
             const displayAmount = chargePayment?.amount ?? order.totalAmount;
+            // Paystack fee is deterministic from the charged total — recompute it here
+            // for display rather than storing it separately.
+            const paystackFee = chargePayment ? calculatePaystackFee(displayAmount) : null;
 
             return (
               <div
@@ -208,6 +211,11 @@ export default function InvoicesPage() {
                     {order.type} · {new Date(order.createdAt).toLocaleDateString("en-NG")}
                   </p>
                   <p className="mt-0.5 text-xs font-medium text-ink">{formatNaira(displayAmount)}</p>
+                  {paystackFee != null ? (
+                    <p className="mt-0.5 text-[11px] text-[#9B8A82]">
+                      Includes {formatNaira(paystackFee)} Paystack charges
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-3">

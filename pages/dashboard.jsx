@@ -115,7 +115,7 @@ import { getSession, getKycStatus } from "../services/authService";
 import { getBrandOrders, getBrandQuotes } from "../services/paymentService";
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.myleddar.com/api/v1";
 
 function authHeaders() {
   const session = getSession();
